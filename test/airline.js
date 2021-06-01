@@ -21,26 +21,36 @@ contract('Airline Tests', async (accounts) => {
         airlines = accounts.slice(1)
         flightSuretyData = await FlightSuretyData.new()
         flightSuretyApp = await FlightSuretyApp.new()
+
         await flightSuretyData.registerLinkedSuretyApp(flightSuretyApp.address)
         await flightSuretyApp.setUp(flightSuretyData.address, airlines[0], { value: web3.utils.toWei('10', 'ether')})
+
+        // initial funding 
+        await flightSuretyData.fund({ value: web3.utils.toWei('10', 'ether')})
         isEventFound = config.isEventFound
     })
 
     describe('Check initial state', async () => {
 
         it('1st airline is registered', async () => {
-            let isRegistered = await flightSuretyData.isRegistredAirline(airlines[0]);
-            assert.equal(isRegistered, true, "1st airline not registered");
+            let isRegistered = await flightSuretyData.isRegistredAirline(airlines[0])
+            assert.equal(isRegistered, true, "1st airline not registered")
         })
 
         it('Only 1 registered airline', async () => {
-            let numRegistered = await flightSuretyData.numberOfRegistredAirlines();
-            assert.equal(numRegistered, 1, `Number of registered airlines ${numRegistered} should be 1`);
+            let numRegistered = await flightSuretyData.numberOfRegistredAirlines()
+            assert.equal(numRegistered, 1, `Number of registered airlines ${numRegistered} should be 1`)
         })
 
         it('Event emitted during registation of 1st airline', async () => {
             let flightSuretyAppEvents = await flightSuretyApp.contract.getPastEvents('allEvents', { fromBlock: 0, toBlock: 'latest' })
             expect(isEventFound(flightSuretyAppEvents, 'AIRLINE_REGISTRED', { _airline: airlines[0], _votesInFavor: '0', _votesAgainst: '0', _numberAirlines: '1' })).to.equal(true)
+
+        })
+
+        it('Check balance of flightsurety data', async() => {
+             let balance =  web3.utils.fromWei(await web3.eth.getBalance(flightSuretyData.address), 'ether')
+             assert.equal(balance.toString(), '20', 'Balance of flightSuretyData not correct')
 
         })
 
@@ -85,7 +95,7 @@ contract('Airline Tests', async (accounts) => {
 
         it('Airline cannot stake if it is in the queue', async () => {
             let newAirline = airlines[1]
-            await flightSuretyApp.stakeAirline({ from: newAirline, value: web3.utils.toWei('10', 'ether') }).should.be.rejectedWith('Airline already in the queue for registration');
+            await flightSuretyApp.stakeAirline({ from: newAirline, value: web3.utils.toWei('10', 'ether') }).should.be.rejectedWith('Airline already in the queue for registration')
         })
 
     })

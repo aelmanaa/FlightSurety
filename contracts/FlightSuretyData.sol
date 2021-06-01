@@ -19,7 +19,6 @@ contract FlightSuretyData {
 
     mapping(address => mapping(bytes32 => uint256)) private passengersDeposits; // passenger registers deposit for each flight
     mapping(address => uint256) private passengersBalances;
-    
 
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
@@ -130,7 +129,11 @@ contract FlightSuretyData {
      *
      */
 
-    function registerAirline(address _airline) public payable requireLinkedSuretyApp() {
+    function registerAirline(address _airline)
+        public
+        payable
+        requireLinkedSuretyApp()
+    {
         airlines[_airline] = true;
         registredAirlines = registredAirlines.add(1); // increment number of registred airlines
     }
@@ -162,6 +165,10 @@ contract FlightSuretyData {
         returns (uint256)
     {
         return passengersDeposits[_passenger][_key];
+    }
+
+    function getBalance(address _passenger) public view returns (uint256) {
+        return passengersBalances[_passenger];
     }
 
     /**

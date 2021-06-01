@@ -188,7 +188,7 @@ contract FlightSuretyApp {
     event FLIGHT_REGISTERED(
         address indexed _airline,
         bytes32 indexed _key,
-        string indexed _flight,
+        string  _flight,
         uint256 timestamp
     );
 
@@ -197,6 +197,22 @@ contract FlightSuretyApp {
         bytes32 indexed _key,
         uint256 _depositedAmount,
         uint256 _totalDeposit
+    );
+
+    event INSURANCE_RELEASED(
+        address indexed _passenger,
+        bytes32 indexed _key,
+        uint256 _totalDeposit,
+        uint256 _totalReleased,
+        uint256 _totalBalance
+    );
+
+    event FLIGHT_INSURANCE_TOBE_RELEASED(
+        address indexed _airline,
+        string  _flight,
+        uint256 timestamp,
+        bytes32 indexed _key,
+        uint256 _passengersNumber
     );
 
     /********************************************************************************************/
@@ -445,6 +461,49 @@ contract FlightSuretyApp {
         );
     }
 
+    function getFlightPassengersNumber(
+        address airline,
+        string memory flight,
+        uint256 timestamp
+    ) public view returns (uint256) {
+        bytes32 _key = getFlightKey(airline, flight, timestamp);
+        return getFlightPassengersNumber(_key);
+    }
+
+    function getFlightPassengersNumber(bytes32 key)
+        public
+        view
+        returns (uint256)
+    {
+        return flights[key].passengerList.length;
+    }
+
+    // loop over this function from dapp to release money. Anyone can trigger money release. this avoids to loop inside the smartcontract
+    function releaseInsurance(bytes32 key) public {
+        if (flights[key].passengerList.length == 0) return;
+        address _passenger = flights[key].passengerList[0];
+        delete flights[key].passengerList[0];
+        uint256 _totalDeposit = flightSuretyData.getDeposit(_passenger, key);
+        uint256 _totalReleased = _totalDeposit.mul(3).div(2);
+        flightSuretyData.creditInsurees(_passenger, key, _totalReleased);
+        emit INSURANCE_RELEASED(
+            _passenger,
+            key,
+            _totalDeposit,
+            _totalReleased,
+            flightSuretyData.getBalance(_passenger)
+        );
+    }
+
+    function releaseInsurance(
+        address airline,
+        string memory flight,
+        uint256 timestamp
+    ) public {
+        bytes32 _key = getFlightKey(airline, flight, timestamp);
+        releaseInsurance(_key);
+    }
+
     /**
      * @dev Called after oracle has updated flight status
      *
@@ -458,17 +517,13 @@ contract FlightSuretyApp {
     ) private {
         if (statusCode == STATUS_CODE_LATE_AIRLINE) {
             bytes32 _key = getFlightKey(airline, flight, timestamp);
-            Flight storage _flight = flights[_key];
-            for (uint256 i = 0; i < _flight.passengerList.length; i++) {
-                flightSuretyData.creditInsurees(
-                    _flight.passengerList[i],
-                    _key,
-                    flightSuretyData
-                        .getDeposit(_flight.passengerList[i], _key)
-                        .mul(3)
-                        .div(2)
-                );
-            }
+            emit FLIGHT_INSURANCE_TOBE_RELEASED(
+                airline,
+                flight,
+                timestamp,
+                _key,
+                flights[_key].passengerList.length
+            );
         }
     }
 
@@ -483,6 +538,7 @@ contract FlightSuretyApp {
         // Generate a unique key for storing the request
         bytes32 key =
             keccak256(abi.encodePacked(index, airline, flight, timestamp));
+        require(flights[getFlightKey(airline, flight, timestamp)].isRegistered, "Flight must be registered");
         ResponseInfo storage responseInfo = oracleResponses[key];
         responseInfo.requester = msg.sender;
         responseInfo.isOpen = true;
@@ -524,27 +580,27 @@ contract FlightSuretyApp {
 
     // Event fired each time an oracle submits a response
     event FlightStatusInfo(
-        address airline,
-        string flight,
-        uint256 timestamp,
-        uint8 status
+        address _airline,
+        string _flight,
+        uint256 _timestamp,
+        uint8 _status
     );
 
     event OracleReport(
-        address airline,
-        string flight,
-        uint256 timestamp,
-        uint8 status
+        address _airline,
+        string _flight,
+        uint256 _timestamp,
+        uint8 _status
     );
 
     // Event fired when flight status request is submitted
     // Oracles track this and if they have a matching index
     // they fetch data and submit a response
     event OracleRequest(
-        uint8 index,
-        address airline,
-        string flight,
-        uint256 timestamp
+        uint8 _index,
+        address _airline,
+        string _flight,
+        uint256 _timestamp
     );
 
     // Register an oracle with the contract
@@ -557,7 +613,7 @@ contract FlightSuretyApp {
         oracles[msg.sender] = Oracle({isRegistered: true, indexes: indexes});
     }
 
-    function getMyIndexes() external view returns (uint8[3] memory) {
+    function getMyIndexes() public view returns (uint8[3] memory) {
         require(
             oracles[msg.sender].isRegistered,
             "Not registered as an oracle"
@@ -584,11 +640,23 @@ contract FlightSuretyApp {
             "Index does not match oracle request"
         );
 
+        require(
+            statusCode == STATUS_CODE_UNKNOWN ||
+                statusCode == STATUS_CODE_ON_TIME ||
+                statusCode == STATUS_CODE_LATE_AIRLINE ||
+                statusCode == STATUS_CODE_LATE_WEATHER ||
+                statusCode == STATUS_CODE_LATE_TECHNICAL ||
+                statusCode == STATUS_CODE_LATE_OTHER,
+            "Status code not known"
+        );
+
+        require(flights[getFlightKey(airline, flight, timestamp)].isRegistered, "Flight must be registered");
+
         bytes32 key =
             keccak256(abi.encodePacked(index, airline, flight, timestamp));
         require(
             oracleResponses[key].isOpen,
-            "Flight or timestamp do not match oracle request"
+            "Flight or timestamp or index do not match oracle request"
         );
 
         oracleResponses[key].responses[statusCode].push(msg.sender);
