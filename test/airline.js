@@ -1,4 +1,3 @@
-let Test = require('../config/testConfig.js')
 let FlightSuretyApp = artifacts.require("FlightSuretyApp")
 let FlightSuretyData = artifacts.require("FlightSuretyData")
 const chai = require('chai')
@@ -8,26 +7,22 @@ chai.use(chaiAsPromised)
 const { expect } = chai
 chai.should()
 
-
+const { isEventFound } = require('./testConfig')
 
 contract('Airline Tests', async (accounts) => {
 
-    let config = Test.Config
-    let owner, airlines, flightSuretyData, flightSuretyApp, isEventFound
+    let owner, airlines, flightSuretyData, flightSuretyApp
     before('setup contract', async () => {
-
-        config = await Test.Config(accounts)
         owner = accounts[0]
         airlines = accounts.slice(1)
         flightSuretyData = await FlightSuretyData.new()
         flightSuretyApp = await FlightSuretyApp.new()
 
         await flightSuretyData.registerLinkedSuretyApp(flightSuretyApp.address)
-        await flightSuretyApp.setUp(flightSuretyData.address, airlines[0], { value: web3.utils.toWei('10', 'ether')})
+        await flightSuretyApp.setUp(flightSuretyData.address, airlines[0], { value: web3.utils.toWei('10', 'ether') })
 
         // initial funding 
-        await flightSuretyData.fund({ value: web3.utils.toWei('10', 'ether')})
-        isEventFound = config.isEventFound
+        await flightSuretyData.fund({ value: web3.utils.toWei('10', 'ether') })
     })
 
     describe('Check initial state', async () => {
@@ -48,9 +43,9 @@ contract('Airline Tests', async (accounts) => {
 
         })
 
-        it('Check balance of flightsurety data', async() => {
-             let balance =  web3.utils.fromWei(await web3.eth.getBalance(flightSuretyData.address), 'ether')
-             assert.equal(balance.toString(), '20', 'Balance of flightSuretyData not correct')
+        it('Check balance of flightsurety data', async () => {
+            let balance = web3.utils.fromWei(await web3.eth.getBalance(flightSuretyData.address), 'ether')
+            assert.equal(balance.toString(), '20', 'Balance of flightSuretyData not correct')
 
         })
 

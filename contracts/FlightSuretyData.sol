@@ -100,7 +100,7 @@ contract FlightSuretyData {
      * When operational mode is disabled, all write transactions except for this one will fail
      */
 
-    function setOperatingStatus(bool mode) external requireContractOwner {
+    function setOperatingStatus(bool mode) external requireContractOwner() {
         operational = mode;
     }
 
@@ -110,6 +110,7 @@ contract FlightSuretyData {
 
     function registerLinkedSuretyApp(address linkedContractApp)
         public
+        requireIsOperational()
         requireContractOwner()
     {
         linkedFlightSuretyApp = linkedContractApp;
@@ -132,6 +133,7 @@ contract FlightSuretyData {
     function registerAirline(address _airline)
         public
         payable
+        requireIsOperational()
         requireLinkedSuretyApp()
     {
         airlines[_airline] = true;
@@ -154,9 +156,13 @@ contract FlightSuretyData {
     function buy(address _passenger, bytes32 _key)
         public
         payable
+        requireIsOperational()
         requireLinkedSuretyApp()
     {
-        passengersDeposits[_passenger][_key].add(msg.value); // credit deposit
+        passengersDeposits[_passenger][_key] = passengersDeposits[_passenger][
+            _key
+        ]
+            .add(msg.value); // credit deposit
     }
 
     function getDeposit(address _passenger, bytes32 _key)
@@ -178,20 +184,22 @@ contract FlightSuretyData {
         address _passenger,
         bytes32 _key,
         uint256 _amount
-    ) public requireLinkedSuretyApp() {
+    ) public requireIsOperational() requireLinkedSuretyApp() {
         require(
             passengersDeposits[_passenger][_key] > 0,
             "Passenger doesn't have any deposit for this flight"
         ); // be sure that passenger has deposit
         delete passengersDeposits[_passenger][_key]; // clear deposit
-        passengersBalances[_passenger].add(_amount);
+        passengersBalances[_passenger] = passengersBalances[_passenger].add(
+            _amount
+        );
     }
 
     /**
      *  @dev Transfers eligible payout funds to insuree
      *
      */
-    function pay() public {
+    function pay() public requireIsOperational() {
         uint256 balance = passengersBalances[msg.sender];
         delete passengersBalances[msg.sender]; //reset balance
         require(balance > 0, "Passenger doesn't have enough balance");
@@ -204,17 +212,17 @@ contract FlightSuretyData {
      *
      */
 
-    function fund() public payable {}
+    function fund() public payable requireIsOperational() {}
 
     /**
      * @dev Fallback function for funding smart contract.
      *
      */
-    fallback() external payable {
+    fallback() external payable requireIsOperational() {
         fund();
     }
 
-    receive() external payable {
+    receive() external payable requireIsOperational() {
         revert("Not managed");
     }
 }

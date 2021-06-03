@@ -18,6 +18,7 @@ contract FlightSuretyApp {
     /*                                       DATA VARIABLES                                     */
     /********************************************************************************************/
 
+    bool private operational = true; // Blocks all state changes throughout the contract if false
     bool private isSetUp;
 
     FlightSuretyData flightSuretyData;
@@ -68,8 +69,7 @@ contract FlightSuretyApp {
      *      the event there is an issue that needs to be fixed
      */
     modifier requireIsOperational() {
-        // Modify to call data contract's status
-        require(true, "Contract is currently not operational");
+        require(operational, "Contract is currently not operational");
         _; // All modifiers require an "_" which indicates where the function body will be added
     }
 
@@ -159,6 +159,14 @@ contract FlightSuretyApp {
         _;
     }
 
+    modifier requireRightStatusCode(bytes32 _key) {
+        require(
+            flights[_key].statusCode == STATUS_CODE_LATE_AIRLINE,
+            "Cannot release insurance. status code not correct"
+        );
+        _;
+    }
+
     /********************************************************************************************/
     /*                                       EVENTS                                        */
     /********************************************************************************************/
@@ -188,7 +196,7 @@ contract FlightSuretyApp {
     event FLIGHT_REGISTERED(
         address indexed _airline,
         bytes32 indexed _key,
-        string  _flight,
+        string _flight,
         uint256 timestamp
     );
 
@@ -209,8 +217,8 @@ contract FlightSuretyApp {
 
     event FLIGHT_INSURANCE_TOBE_RELEASED(
         address indexed _airline,
-        string  _flight,
-        uint256 timestamp,
+        string _flight,
+        uint256 _timestamp,
         bytes32 indexed _key,
         uint256 _passengersNumber
     );
@@ -240,11 +248,16 @@ contract FlightSuretyApp {
     /*                                     SMART CONTRACT FUNCTIONS                             */
     /********************************************************************************************/
 
+    function setOperatingStatus(bool mode) external requireContractOwner() {
+        operational = mode;
+    }
+
     // setup of contract (called just after contructing)
 
     function setUp(FlightSuretyData _flightSuretyData, address _airline)
         public
         payable
+        requireIsOperational()
         requireContractOwner()
         calledOnlyOnce()
     {
@@ -268,7 +281,12 @@ contract FlightSuretyApp {
     }
 
     // Airline stakes 10 ether before registrating
-    function stakeAirline() public payable nonExistingAirline(msg.sender) {
+    function stakeAirline()
+        public
+        payable
+        requireIsOperational()
+        nonExistingAirline(msg.sender)
+    {
         // Require registration fee
         require(
             msg.value >= AIRLINE_FEE,
@@ -314,6 +332,7 @@ contract FlightSuretyApp {
 
     function registerAirline(address _airline)
         public
+        requireIsOperational()
         mustBeQueued(_airline)
         cannotBeInQueueVote(_airline)
         checkRegistrerAirline(_airline)
@@ -348,6 +367,7 @@ contract FlightSuretyApp {
 
     function voteAirline(address _airline, bool _inFavor)
         public
+        requireIsOperational()
         mustBeInQueueVote(_airline)
         checkRegistrerAirline(_airline)
     {
@@ -407,6 +427,7 @@ contract FlightSuretyApp {
         uint256 _timestamp
     )
         public
+        requireIsOperational()
         requireKnownAirline(_airline)
         requireValidFlightNumber(_flight)
         requireValidTimestamp(_timestamp)
@@ -428,6 +449,7 @@ contract FlightSuretyApp {
     )
         public
         payable
+        requireIsOperational()
         requireKnownAirline(_airline)
         requireValidFlightNumber(_flight)
         requireValidTimestamp(_timestamp)
@@ -478,12 +500,26 @@ contract FlightSuretyApp {
         return flights[key].passengerList.length;
     }
 
+    function getFlightPassengersList(bytes32 key)
+        public
+        view
+        returns (address[] memory)
+    {
+        return flights[key].passengerList;
+    }
+
     // loop over this function from dapp to release money. Anyone can trigger money release. this avoids to loop inside the smartcontract
-    function releaseInsurance(bytes32 key) public {
-        if (flights[key].passengerList.length == 0) return;
-        address _passenger = flights[key].passengerList[0];
-        delete flights[key].passengerList[0];
+    function releaseInsurance(bytes32 key)
+        public
+        requireIsOperational()
+        requireRightStatusCode(key)
+    {
+        uint256 length = flights[key].passengerList.length;
+        if (length == 0) return;
+        address _passenger = flights[key].passengerList[length - 1];
+        flights[key].passengerList.pop();
         uint256 _totalDeposit = flightSuretyData.getDeposit(_passenger, key);
+        require(_totalDeposit > 0, "Passenger does not have enough deposit"); // sanity check, fail fast. passenger shouldn't be in the list without having deposited somehting
         uint256 _totalReleased = _totalDeposit.mul(3).div(2);
         flightSuretyData.creditInsurees(_passenger, key, _totalReleased);
         emit INSURANCE_RELEASED(
@@ -499,9 +535,22 @@ contract FlightSuretyApp {
         address airline,
         string memory flight,
         uint256 timestamp
-    ) public {
+    ) public requireIsOperational() {
         bytes32 _key = getFlightKey(airline, flight, timestamp);
         releaseInsurance(_key);
+    }
+
+    function getFlightStatusCode(
+        address airline,
+        string memory flight,
+        uint256 timestamp
+    ) public view returns (uint8) {
+        return getFlightStatusCode(getFlightKey(airline, flight, timestamp));
+    }
+
+    function getFlightStatusCode(bytes32 key) public view returns (uint8) {
+        require(flights[key].isRegistered, "Flight must be registered");
+        return flights[key].statusCode;
     }
 
     /**
@@ -532,13 +581,16 @@ contract FlightSuretyApp {
         address airline,
         string memory flight,
         uint256 timestamp
-    ) public {
+    ) public requireIsOperational() {
         uint8 index = getRandomIndex(msg.sender);
 
         // Generate a unique key for storing the request
         bytes32 key =
             keccak256(abi.encodePacked(index, airline, flight, timestamp));
-        require(flights[getFlightKey(airline, flight, timestamp)].isRegistered, "Flight must be registered");
+        require(
+            flights[getFlightKey(airline, flight, timestamp)].isRegistered,
+            "Flight must be registered"
+        );
         ResponseInfo storage responseInfo = oracleResponses[key];
         responseInfo.requester = msg.sender;
         responseInfo.isOpen = true;
@@ -604,7 +656,7 @@ contract FlightSuretyApp {
     );
 
     // Register an oracle with the contract
-    function registerOracle() public payable {
+    function registerOracle() public payable requireIsOperational() {
         // Require registration fee
         require(msg.value >= REGISTRATION_FEE, "Registration fee is required");
 
@@ -632,7 +684,7 @@ contract FlightSuretyApp {
         string memory flight,
         uint256 timestamp,
         uint8 statusCode
-    ) external {
+    ) public requireIsOperational() {
         require(
             (oracles[msg.sender].indexes[0] == index) ||
                 (oracles[msg.sender].indexes[1] == index) ||
@@ -650,7 +702,10 @@ contract FlightSuretyApp {
             "Status code not known"
         );
 
-        require(flights[getFlightKey(airline, flight, timestamp)].isRegistered, "Flight must be registered");
+        require(
+            flights[getFlightKey(airline, flight, timestamp)].isRegistered,
+            "Flight must be registered"
+        );
 
         bytes32 key =
             keccak256(abi.encodePacked(index, airline, flight, timestamp));
@@ -667,6 +722,8 @@ contract FlightSuretyApp {
         if (
             oracleResponses[key].responses[statusCode].length >= MIN_RESPONSES
         ) {
+            flights[getFlightKey(airline, flight, timestamp)]
+                .statusCode = statusCode;
             emit FlightStatusInfo(airline, flight, timestamp, statusCode);
 
             // Handle flight status as appropriate
@@ -678,7 +735,7 @@ contract FlightSuretyApp {
         address airline,
         string memory flight,
         uint256 timestamp
-    ) internal pure returns (bytes32) {
+    ) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(airline, flight, timestamp));
     }
 

@@ -7,7 +7,7 @@ chai.use(chaiAsPromised)
 const { expect } = chai
 chai.should()
 
-const sleepNow = delay => new Promise(resolve => setTimeout(resolve, delay))
+const { sleepNow } = require('./testConfig')
 
 contract('Oracles', async (accounts) => {
 
@@ -47,11 +47,25 @@ contract('Oracles', async (accounts) => {
 
     // ACT
     for (let a = 0; a < TEST_ORACLES_COUNT; a++) {
-      console.log("oracle account ", oracles[a])
-      await flightSuretyApp.registerOracle({ from: oracles[a], value: fee })
-      let result = await flightSuretyApp.getMyIndexes({ from: oracles[a] })
-      console.log(`Oracle Registered: ${result[0]}, ${result[1]}, ${result[2]}`)
-      await sleepNow(500)
+      try {
+        await flightSuretyApp.registerOracle({ from: oracles[a], value: fee })
+      } catch (e1) {
+        await sleepNow(2000)
+        //retry 2 times with exponential backoff, there are random revert issues when the loop is too fast
+        try {
+          await flightSuretyApp.registerOracle({ from: oracles[a], value: fee })
+        }
+        catch (e2) {
+          await sleepNow(4000)
+          try {
+            await flightSuretyApp.registerOracle({ from: oracles[a], value: fee })
+          } catch (e3) {
+            await sleepNow(8000)
+            await flightSuretyApp.registerOracle({ from: oracles[a], value: fee })
+          }
+        }
+
+      }
     }
   })
 
