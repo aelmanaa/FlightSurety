@@ -638,6 +638,13 @@ contract FlightSuretyApp {
         uint8 _status
     );
 
+    event OracleRegistered(
+        address indexed _oracle,
+        uint256 _registrationFee,
+        bool _isRegistered,
+        uint8[3] _indexes
+    );
+
     event OracleReport(
         address _airline,
         string _flight,
@@ -663,6 +670,8 @@ contract FlightSuretyApp {
         uint8[3] memory indexes = generateIndexes(msg.sender);
 
         oracles[msg.sender] = Oracle({isRegistered: true, indexes: indexes});
+
+        emit OracleRegistered(msg.sender, msg.value, oracles[msg.sender].isRegistered, oracles[msg.sender].indexes);
     }
 
     function getMyIndexes() public view returns (uint8[3] memory) {

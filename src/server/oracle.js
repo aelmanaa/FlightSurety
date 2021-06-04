@@ -1,9 +1,14 @@
 class Oracle {
     _address = ''
     _indexes = []
+    _isRegistered = false
 
-    constructor(address) {
+    constructor(address, registerOracle, getIndexesMethod, submitOracleResponse) {
         this._address = address
+        this._registerOracle = registerOracle
+        this._getIndexesMethod = getIndexesMethod
+        this._submitOracleResponse = submitOracleResponse
+
     }
 
     set indexes(indexes) {
@@ -18,24 +23,43 @@ class Oracle {
         return this._address
     }
 
+    get registered() {
+        return this._isRegistered
+    }
+
     log() {
-        return `Address is '${this._address}' and indexes are '${this._indexes}'`
+        return `Oracle resgitered '${this._isRegistered}' . Address is '${this._address}' and indexes are '${this._indexes}'`
     }
 
-    setRegisterMethod(registerOracle) {
-        this._registerOracle = registerOracle
+
+    async registerAndIndexes(fee) {
+        await this._register(fee)
+        if (this._isRegistered) {
+            this._indexes = await this._retrieveIndexes()
+        }
     }
 
-    setGetIndexesMethod(getIndexesMethod) {
-        this._getIndexesMethod = getIndexesMethod
+    async _retrieveIndexes() {
+        try {
+            return await this._getIndexesMethod().call({ from: this._address })
+        } catch (error) {
+            console.log('Error while getting indexes ', error)
+            throw new Error('Error while getting indexes')
+        }
     }
 
-    async register(fee) {
-        await this._registerOracle().send({
-            from: this._address, value: fee
-        })
 
-         this._indexes = await this._getIndexesMethod().call({ from: this._address })
+    async _register(fee) {
+
+        try {
+            await this._registerOracle().send({
+                from: this._address, value: fee
+            })
+            this._isRegistered = true
+        } catch (error) {
+            console.log('Error during registration ')
+            this._isRegistered = false
+        }
     }
 }
 

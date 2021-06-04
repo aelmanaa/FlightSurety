@@ -3,6 +3,19 @@ import Setup from './setup'
 import express from 'express'
 
 
+const registerAndGetRegistered = async (oracles, fee) => {
+
+  for (let oracle of oracles) {
+    await oracle.registerAndIndexes(fee)
+    console.log(oracle.log())
+  }
+
+  return oracles.filter(oracle => {
+    return oracle.registered
+  })
+
+}
+
 (async () => {
 
   let sleepNow = delay => new Promise(resolve => setTimeout(resolve, delay))
@@ -21,61 +34,16 @@ import express from 'express'
 
   let fee = await methods.REGISTRATION_FEE().call()
   console.log('fee ', fee)
+  console.log('oracles length ', oracles.length)
   let oracleIndexes = []
   //console.log('owner ', owner)
   //console.log('oracles ', oracles)
 
-  console.log('accounts ', accounts)
+
+  let registeredOracles = await registerAndGetRegistered(oracles , fee)
+  console.log('Number of registered oracles ', registeredOracles.length)
 
 
-  let cpt = 0, stop
-  for (let oracle of oracles) {
-    oracle.setRegisterMethod(methods.registerOracle)
-    oracle.setGetIndexesMethod(methods.getMyIndexes)
-
-    await oracle.register(fee)
-    console.log(oracle.log())
-
-    /*
-    stop = false
-    methods.registerOracle().send({
-      from: oracle.address, value: fee
-    }, async (error, result) => {
-      console.log(error)
-      if(result){
-        console.log(result)
-        oracleIndexes = await methods.getMyIndexes().call({ from: oracle.address })
-        oracle.indexes = oracleIndexes
-        console.log(oracle.log())
-      }
-      
-    })
-
-    
-    while (cpt < 10 && !stop) {
-      try {
-        await methods.registerOracle().send({
-          from: oracle.address, value: fee
-        }, (error, result) => {
-          console.log(error)
-          console.log(result)
-        })
-        console.log(`success for ${oracle.address}`)
-        cpt = 0
-        stop = true
-      } catch (e) {
-        cpt++
-        await sleepNow(5000)
-        console.log(`failure for ${oracle.address}`)
-        console.log(e)
-      }
-      
-  }*/
-
-
-
-
-  }
 
 
 
