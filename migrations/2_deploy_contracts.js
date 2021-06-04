@@ -11,8 +11,8 @@ module.exports = async function (deployer, network, accounts) {
     let flightSuretyData = await FlightSuretyData.deployed()
 
     await flightSuretyData.registerLinkedSuretyApp(FlightSuretyApp.address)
-    await flightSuretyData.fund({ value: web3.utils.toWei('10', 'ether'), from: accounts[0] })
-    await flightSuretyApp.setUp(FlightSuretyData.address, firstAirline, { from: accounts[0], value: web3.utils.toWei('10', 'ether') })
+    await flightSuretyData.fund({ value: web3.utils.toWei('100', 'ether'), from: accounts[0] })
+    await flightSuretyApp.setUp(FlightSuretyData.address, firstAirline, { from: accounts[0], value: web3.utils.toWei('100', 'ether') })
     console.log('lol')
     console.log(network)
     console.log(network.gas)

@@ -10,24 +10,56 @@
 </head>
 
 <body>
-
+<div class="whole-body">
     <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
         <a class="navbar-brand" href="#">FlightSurety</a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault"
-            aria-expanded="false" aria-label="Toggle navigation">
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault"
+            aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
     </nav>
 
-    <main class="container">
+<div class="whole">
+<div class="split left" >
+        <table id="airlines" class="container">
+          <thead>
+              <tr>
+                  <th scope="col" >Airline</th>
+                  <th scope="col">Registered</th>
+                  <th scope="col">QueuedForVote</th>
+                  <th scope="col">QueuedForRegistration</th>
+                  <th scope="col">Vote</th>
+              </tr>
+           </thead>
+           <tbody>
+              <tr>
+              </tr>
+          </tbody>
+      </table>
+  </div>
 
-        <div id="display-wrapper" class="top-20">
-        </div>
-        <div class="row top-20">
-            <label class="form">Flight</label> <input type="text" id="flight-number"> <btn class="btn btn-primary" id="submit-oracle">Submit to Oracles</btn>
-        </div>
-    </main>
 
+    <div class="split right row">
+        <div class="centered">
+            <main class="container">
+                <div id="display-wrapper" class="top-20">
+                </div>
+                <div class="row top-20">
+                    <label class="form">Flight</label> <input type="text" id="flight-number">
+                    <btn class="btn btn-primary" id="submit-oracle">Submit to Oracles</btn>
+                </div>
+            </main>
+            <main class="container">
+                <div id="display-wrapper" class="top-20">
+                </div>
+                <div class="row top-20">
+                    <btn class="btn btn-primary" id="stake-airline">Airline staking</btn>
+                </div>
+            </main>
+        </div>
+    </div>
+</div>
+</div>
 </body>
 
 </html>

@@ -16,12 +16,29 @@ export default class DOM {
     static span = (...args) => DOM.makeElement(`span`, ...args);
     static img = (...args) => DOM.makeElement(`img`, ...args);
     static td = (...args) => DOM.makeElement(`td`, ...args);
+    static tr = (...args) => DOM.makeElement(`tr`, ...args);
+    static th = (...args) => DOM.makeElement(`th`, ...args);
+    static tbody = (...args) => DOM.makeElement(`tbody`, ...args);
     static attributeExceptions = [
       `role`,
     ];
     
     static elid(id) { 
       return document.getElementById(id);
+    }
+
+    static clearTbody(id){
+      let table = document.getElementById(id)
+      let tbodies = table.getElementsByTagName("tbody")
+      for (let tbody of tbodies){
+        tbody.remove()
+      }
+
+    }
+
+    static getTbody(id){
+      let table = document.getElementById(id)
+      return table.getElementsByTagName("tbody")[0]
     }
   
     static appendText(el, text) {

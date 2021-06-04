@@ -32,11 +32,6 @@ let parseEvent = async (log, web3) => {
 
 
 export default async () => {
-    console.log('*********************************************************************************************')
-    console.log('******************************* START SETUP *************************************************')
-    console.log('*********************************************************************************************')
-
-
     let config = Config['localhost']
 
     let provider = new HDWalletProvider({
@@ -47,7 +42,7 @@ export default async () => {
         numberOfAddresses: 50
     })
 
-  
+
 
     // HDWalletProvider does not listen to event
     // create a websocket provider to listen to events
@@ -82,10 +77,6 @@ export default async () => {
         console.log('Error while retrieving current account:', error)
         throw new Error('Error while retrieving current account')
     }
-
-    console.log('*********************************************************************************************')
-    console.log('******************************* END SETUP ***************************************************')
-    console.log('*********************************************************************************************')
 
     return {
         accounts,

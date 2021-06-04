@@ -4,8 +4,47 @@ body {
     background-size: cover;
 }
 
+
+.whole-body{
+  display: flex;
+  flex-flow: row wrap;
+}
+
+.whole {
+  display: flex;
+}
+
+/* Split the screen in half */
+.split {
+    height: 100%;
+    width: 50%;
+    position: fixed;
+    z-index: 1;
+    top: 0;
+    padding: 5px;
+  }
+  
+  /* Control the left side */
+  .left {
+    left: 0;
+  }
+  
+  /* Control the right side */
+  .right {
+    right: 0;
+  }
+  
+  /* If you want the content centered horizontally and vertically */
+  .centered {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+
 .container {
-    margin-top: 400px;
+    margin-top: 200px;
     background-color: #000;
     opacity: 0.9;
     color: #fff;
@@ -40,3 +79,34 @@ label.form {
 input {
     margin-right: 30px;
 }
+
+
+.row {
+    margin-left:-5px;
+    margin-right:-5px;
+  }
+    
+  .column {
+    float: left;
+    width: 50%;
+    padding: 5px;
+  }
+  
+  /* Clearfix (clear floats) */
+  .row::after {
+    content: "";
+    clear: both;
+    display: table;
+  }
+  
+  table {
+    border-collapse: collapse;
+    border-spacing: 0;
+    width: 100%;
+    border: 1px solid #ddd;
+  }
+  
+  th, td {
+    text-align: left;
+  }
+  
