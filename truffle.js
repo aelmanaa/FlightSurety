@@ -1,11 +1,15 @@
 let HDWalletProvider = require("@truffle/hdwallet-provider")
-let mnemonic = "clown popular bitter steak purity feed hole ginger fiber hunt lizard main"
+let mnemonicPhrase = "shallow more plastic pair asset rare inherit upon issue degree they hobby"
 
 module.exports = {
   networks: {
     development: {
-      host: "127.0.0.1",
-      port: 8545,
+      provider: () => new HDWalletProvider({
+        mnemonic: {
+          phrase: mnemonicPhrase
+        },
+        providerOrUrl: 'http://127.0.0.1:8545'
+      }),
       network_id: "*", // Match any network id
       //gas: 6300000
     },
