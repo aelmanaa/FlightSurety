@@ -11,7 +11,7 @@ export default class Contract {
     _airlines = []
     _currentAccount = ''
 
-    
+
 
     constructor(network, callback) {
 
@@ -33,15 +33,16 @@ export default class Contract {
 
     async initAccounts() {
         await this.getMetaskAccountID()
-        window.ethereum.on('accountsChanged', async(acc) => {
+        window.ethereum.on('accountsChanged', async (acc) => {
 
-        try {
+            try {
                 this._currentAccount = acc[0]
-        } catch (error) {
-            console.log('Error while retrieving current account:', error)
-            return
+                this.updateCurrentAccountElement(this._currentAccount)
+            } catch (error) {
+                console.log('Error while retrieving current account:', error)
+                return
 
-        }
+            }
         })
 
         let balance = this.web3.utils.fromWei(await this.web3.eth.getBalance(this._config.dataAddress), 'ether')
@@ -60,27 +61,22 @@ export default class Contract {
             for (let log of events) {
                 switch (log.event) {
                     case "AIRLINE_REGISTRED":
-                        this._airlines.push(
-                            new Airline(log.returnValues._airline,
-                                this.flightSuretyApp.methods.stakeAirline,
-                                this.flightSuretyApp.methods.registerAirline,
-                                this.flightSuretyApp.methods.voteAirline,
-                                this.flightSuretyData.methods.isRegistredAirline,
-                                this.flightSuretyApp.methods.airlineQueueState
-                            ))
-                        await this._airlines[0].refreshState()
-                        break
+                    case "AIRLINE_READY_FOR_VOTE":
                     case "AIRLINE_QUEUED":
-                            let airline = new Airline(log.returnValues._airline,
-                                this.flightSuretyApp.methods.stakeAirline,
-                                this.flightSuretyApp.methods.registerAirline,
-                                this.flightSuretyApp.methods.voteAirline,
-                                this.flightSuretyData.methods.isRegistredAirline,
-                                this.flightSuretyApp.methods.airlineQueueState
-                            )
-                            await airline.refreshState()
-                            this.replaceOrPushAirline(airline)
-                            break
+
+                        let newAirline = new Airline(log.returnValues._airline,
+                            this.flightSuretyApp.methods.stakeAirline,
+                            this.flightSuretyApp.methods.registerAirline,
+                            this.flightSuretyApp.methods.voteAirline,
+                            this.flightSuretyData.methods.isRegistredAirline,
+                            this.flightSuretyApp.methods.airlineQueueState
+                        )
+                        await newAirline.refreshState()
+                        this.replaceOrPushAirline(newAirline)
+                        break
+                    case "AIRLINE_REFUSED":
+                        this.removeAirline(log.returnValues._airline)
+                        break
                     default:
                         console.log(log)
                 }
@@ -93,6 +89,8 @@ export default class Contract {
         this.flightSuretyApp.events.allEvents().on('data', async (log) => {
             console.log('event received ', log)
             switch (log.event) {
+                case "AIRLINE_REGISTRED":
+                case "AIRLINE_READY_FOR_VOTE":
                 case "AIRLINE_QUEUED":
                     let airline = new Airline(log.returnValues._airline,
                         this.flightSuretyApp.methods.stakeAirline,
@@ -103,7 +101,11 @@ export default class Contract {
                     )
                     await airline.refreshState()
                     this.replaceOrPushAirline(airline)
-                    this.triggerRefreshAirlines(this._airlines)
+                    this.triggerRefreshAirlines(this, this._airlines)
+                    break
+                case "AIRLINE_REFUSED":
+                    this.removeAirline(log.returnValues._airline)
+                    this.triggerRefreshAirlines(this, this._airlines)
                     break
                 default:
             }
@@ -121,7 +123,8 @@ export default class Contract {
 
 
         // initialize trigger for frontend
-        this.triggerRefreshAirlines = () => {}
+        this.updateCurrentAccountElement = () => { }
+        this.triggerRefreshAirlines = () => { }
 
         await callback()
     }
@@ -161,12 +164,69 @@ export default class Contract {
         await airline.stake(this.web3.utils.toWei(STAKE_PRICE, 'ether'))
     }
 
+    async registerAirline(address) {
+        // first check that the caller is a registered airline
+        let callers = this._airlines.filter(airline => airline.address.toLowerCase() === this._currentAccount.toLowerCase())
+        let caller
+        if (callers.length !== 1) {
+            console.error('Number of airlines to call registeration is not corrrect ', callers.length)
+        } else {
+            caller = callers[0]
+        }
+
+        if (!caller.isRegistered) {
+            console.error('Caller airline is not registered. It cannot register another airline ', caller)
+        } else {
+
+            // first find airline
+            let res = this._airlines.filter(airline => airline.address.toLowerCase() === address.toLowerCase())
+            if (res.length !== 1) {
+                console.error('Number of airlines to be registered is not corrrect ', res.length)
+            } else {
+                let airline = res[0]
+                await caller.register(airline.address)
+
+            }
+
+        }
+
+
+    }
+
+
+    async voteAirline(address, answer) {
+        // first check that the caller is a registered airline
+        let callers = this._airlines.filter(airline => airline.address.toLowerCase() === this._currentAccount.toLowerCase())
+        let caller
+        if (callers.length !== 1) {
+            console.error('Number of airlines to call registeration is not corrrect ', callers.length)
+        } else {
+            caller = callers[0]
+        }
+
+        if (!caller.isRegistered) {
+            console.error('Caller airline is not registered. It cannot vote for another airline ', caller)
+        } else {
+
+            // first find airline
+            let res = this._airlines.filter(airline => airline.address.toLowerCase() === address.toLowerCase())
+            if (res.length !== 1) {
+                console.error('Number of airlines to be registered is not corrrect ', res.length)
+            } else {
+                let airline = res[0]
+                await caller.vote(airline.address, answer)
+
+            }
+
+        }
+    }
+
     async getMetaskAccountID() {
 
         try {
 
-                const accounts = await this.web3.eth.getAccounts()
-                this._currentAccount = accounts[0]
+            const accounts = await this.web3.eth.getAccounts()
+            this._currentAccount = accounts[0]
 
         } catch (error) {
             console.log('Error while retrieving current account:', error)
@@ -179,8 +239,8 @@ export default class Contract {
     get airlines() {
         return this._airlines
     }
-    
-    get currentAccount(){
+
+    get currentAccount() {
         return this._currentAccount
     }
 
@@ -194,5 +254,15 @@ export default class Contract {
         } else {
             this._airlines.push(airline)
         }
+    }
+
+    removeAirline(address) {
+        console.log('inside remove airline')
+        this._airlines = this._airlines.filter(a => {
+            console.log('a.address ', a.address.toLowerCase())
+            console.log('address ', address.toLowerCase())
+            console.log(address.toLowerCase() !== a.address.toLowerCase())
+            return address.toLowerCase() !== a.address.toLowerCase()
+        })
     }
 }

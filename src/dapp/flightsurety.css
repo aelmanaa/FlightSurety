@@ -4,6 +4,13 @@ body {
     background-size: cover;
 }
 
+#current-account{
+  position: relative;
+  color: #fff;
+  left: 700px;
+
+}
+
 
 .whole-body{
   display: flex;

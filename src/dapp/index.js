@@ -37,6 +37,11 @@ let renderAddress = (address) => {
 
     let contract = new Contract('localhost', async () => {
 
+        // render
+        updateCurrentAccountElement(contract.currentAccount)
+        displayAirlines(contract, contract.airlines)
+
+
         // Read transaction
         contract.isOperational((error, result) => {
             display('Operational Status', 'Check if contract is operational', [{ label: 'Operational Status', error: error, value: result }]);
@@ -52,14 +57,11 @@ let renderAddress = (address) => {
             })
         })
 
-        // stake airline
-        DOM.elid('stake-airline').addEventListener('click', async () => {
-            await contract.stakeAirline()
-        })
 
-        displayAirlines(contract.airlines)
+
 
         //setup triggers
+        contract.updateCurrentAccountElement = updateCurrentAccountElement
         contract.triggerRefreshAirlines = triggerRefreshAirlines
 
     })
@@ -67,23 +69,68 @@ let renderAddress = (address) => {
 
 })()
 
-function triggerRefreshAirlines(airlines) {
-    displayAirlines(airlines)
+
+function updateCurrentAccountElement(currentAccount) {
+    DOM.elid('current-account').innerHTML = 'Logged in account: ' + currentAccount
 }
 
-function displayAirlines(airlines) {
+function triggerRefreshAirlines(contract, airlines) {
+    displayAirlines(contract, airlines)
+}
+
+function displayAirlines(contract, airlines) {
     DOM.clearTbody('airlines')
     let table = document.getElementById('airlines')
     let tbody = table.appendChild(DOM.tbody())
-    let tr
+    let tr, cell
     for (let airline of airlines) {
-        tr = tbody.appendChild(DOM.tr())
+        tr = tbody.appendChild(DOM.tr({ id: airline.address }))
         tr.append(DOM.th({ scope: 'row' }, renderAddress(airline.address)))
         tr.append(DOM.td({}, renderBool(airline.isRegistered)))
         tr.append(DOM.td({}, renderBool(airline.isQueueForVote)))
         tr.append(DOM.td({}, renderBool(airline.isQueueRegistration)))
-        tr.append(DOM.td({}, 'click here vote')) 
-}
+        cell = tr.appendChild(DOM.td({}))
+        if (!airline.isRegistered) {
+            if (airline.isQueueForVote) {
+                cell.appendChild(DOM.button({ name: 'vote-airline', className: 'btn btn-primary' }, 'Vote'))
+                cell.appendChild(DOM.input({ name: 'vote-airline-response', type: 'checkbox', checked: true }))
+
+            } else if (airline.isQueueRegistration) {
+                cell.appendChild(DOM.button({ name: 'register-airline', className: 'btn btn-primary' }, 'Register'))
+            } else {
+                console.error('State of airline not correct ', airline)
+                cell.appendChild(DOM.span({}, 'Error.State not correct'))
+            }
+        }
+
+    }
+
+    // stake airline
+    DOM.elid('stake-airline').addEventListener('click', async () => {
+        await contract.stakeAirline()
+    })
+
+    // register for airline
+    for (let domElement of DOM.elemmentsName('register-airline')) {
+        domElement.addEventListener('click', async (self) => {
+            let source = self.target
+            let airlineAddress = DOM.closestRowParentInTable(source).id
+            await contract.registerAirline(airlineAddress)
+
+        })
+
+    }
+
+    // vote for airline
+    for (let domElement of DOM.elemmentsName('vote-airline')) {
+        domElement.addEventListener('click', async (self) => {
+            let source = self.target
+            let airlineAddress = DOM.closestRowParentInTable(source).id
+            await contract.voteAirline(airlineAddress, DOM.ckeckBoxOfButtonInTable(source).checked)
+
+        })
+
+    }
 }
 
 function display(title, description, results) {

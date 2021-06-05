@@ -19,12 +19,25 @@ export default class DOM {
     static tr = (...args) => DOM.makeElement(`tr`, ...args);
     static th = (...args) => DOM.makeElement(`th`, ...args);
     static tbody = (...args) => DOM.makeElement(`tbody`, ...args);
+    static input = (...args) => DOM.makeElement(`input`, ...args)
     static attributeExceptions = [
       `role`,
     ];
     
     static elid(id) { 
       return document.getElementById(id);
+    }
+
+    static elemmentsName(name){
+    return document.getElementsByName(name)
+    }
+
+    static closestRowParentInTable(domTableElement){
+      return domTableElement.closest("tr")
+    }
+
+    static ckeckBoxOfButtonInTable(domTableButtonElement){
+      return domTableButtonElement.closest("td").getElementsByTagName('input')[0]
     }
 
     static clearTbody(id){
