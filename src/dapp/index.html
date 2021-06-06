@@ -17,12 +17,13 @@
             aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
+        <span id='operational-status'>Operational status </span>
         <span id='current-account'>Logged in account </span>
     </nav>
 
 <div class="whole">
 <div class="split left" >
-        <table id="airlines" class="container">
+        <table id="airlines" class="container container-1">
           <thead>
               <tr>
                   <th scope="col" >Airline</th>
@@ -37,25 +38,40 @@
               </tr>
           </tbody>
       </table>
+
+      <table id="flights" class="container container-4">
+        <thead>
+            <tr>
+                <th scope="col" >Airline</th>
+                <th scope="col">Flight Number</th>
+                <th scope="col">Timestamp</th>
+                <th scope="col">Statuscode</th>
+                <th scope="col">Action</th>
+            </tr>
+         </thead>
+         <tbody>
+            <tr>
+            </tr>
+        </tbody>
+    </table>
   </div>
 
 
     <div class="split right row">
         <div class="centered">
-            <main class="container">
+            <main class="container container-3">
                 <div id="display-wrapper" class="top-20">
-                </div>
-                <div class="row top-20">
-                    <label class="form">Flight</label> <input type="text" id="flight-number">
-                    <btn class="btn btn-primary" id="submit-oracle">Submit to Oracles</btn>
-                </div>
-            </main>
-            <main class="container">
-                <div id="display-wrapper" class="top-20">
-                </div>
-                <div class="row top-20">
-                    <btn class="btn btn-primary" id="stake-airline">Airline staking</btn>
-                </div>
+                    <section>
+                        <h2>Airlines</h2>
+                        <div class="row top-20">
+                            <label class="form">Flight</label> <input type="text" id="airline-flight-number">
+                            <btn class="btn btn-primary" id="register-flight">Register flight</btn>
+                        </div>
+                        <div class="row top-20">
+                            <btn class="btn btn-primary" id="stake-airline">Airline staking</btn>
+                        </div>
+                    </section>
+                </div>              
             </main>
         </div>
     </div>

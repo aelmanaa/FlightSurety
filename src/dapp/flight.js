@@ -9,14 +9,21 @@ export default class Flight {
     STATUS_CODE_LATE_TECHNICAL = 40
     STATUS_CODE_LATE_OTHER = 50
 
+    _airline = ''
     _number = ''
     _timestamp = ''
     _status = ''
 
-    constructor(_number, _timestamp) {
+    constructor(_airline, _number, _timestamp, _status, _fetchFlightStatus) {
+        this._airline = _airline.toLowerCase()
         this._number = _number
         this._timestamp = _timestamp
-        this._status = STATUS_CODE_UNKNOWN
+        this._status = _status
+        this._fetchFlightStatus = _fetchFlightStatus
+    }
+
+    get airline() {
+        return this._airline
     }
 
     get status() {
@@ -34,4 +41,15 @@ export default class Flight {
     set status(_status) {
         this._status = status
     }
+
+    async fetchFlightStatus(caller) {
+        try {
+            await this._fetchFlightStatus(this._airline, this._number, this._timestamp).send({ from: caller })
+        } catch (e) {
+            console.log('Error while requesting flight new status ', e)
+            throw new Error('Error while fetching flight status')
+
+        }
+    }
+
 }

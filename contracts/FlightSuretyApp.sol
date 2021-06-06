@@ -197,7 +197,8 @@ contract FlightSuretyApp {
         address indexed _airline,
         bytes32 indexed _key,
         string _flight,
-        uint256 timestamp
+        uint256 _timestamp,
+        uint8 _status
     );
 
     event INSURANCE_DEPOSITED(
@@ -439,7 +440,7 @@ contract FlightSuretyApp {
         flight.statusCode = STATUS_CODE_UNKNOWN;
         flight.updatedTimestamp = _timestamp;
         flight.airline = _airline;
-        emit FLIGHT_REGISTERED(_airline, key, _flight, _timestamp);
+        emit FLIGHT_REGISTERED(_airline, key, _flight, _timestamp , STATUS_CODE_UNKNOWN);
     }
 
     function buy(

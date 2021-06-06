@@ -3,7 +3,6 @@ import Flight from './flight'
 
 export default class Airline {
 
-    _flights = []
     _address = ''
     _isRegistered = false
     _isQueueRegistration = false
@@ -11,13 +10,14 @@ export default class Airline {
 
 
 
-    constructor(_address, _stake, _register, _vote, _isRegisteredAirline, _airlineQueueState) {
+    constructor(_address, _stake, _register, _vote, _isRegisteredAirline, _airlineQueueState, _registerFlight) {
         this._address = _address.toLowerCase()
         this._stake = _stake
         this._register = _register
         this._vote = _vote
         this._isRegisteredAirline = _isRegisteredAirline
         this._airlineQueueState = _airlineQueueState
+        this._registerFlight = _registerFlight
     }
 
     async stake(fee) {
@@ -46,15 +46,17 @@ export default class Airline {
         }
     }
 
+    async registerFlight(_flightNumber, _timestamp){
+        try{
+            await this._registerFlight(this._address, _flightNumber , _timestamp).send({ from: this._address })
 
-
-    addFlight(_number, _timestamp) {
-        this._flights.push(new Flight(_number, _timestamp))
+        }catch(e){
+            console.log(e)
+            throw new Error('error while registering a flight')
+        }
     }
 
-    get flights() {
-        return this._flights;
-    }
+
 
     get address() {
         return this._address

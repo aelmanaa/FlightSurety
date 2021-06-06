@@ -3,12 +3,14 @@ import flightSuretyData from '../../build/contracts/FlightSuretyData.json'
 import Config from './config.json'
 import Web3 from 'web3'
 import Airline from './airline'
+import Flight from './flight'
 
 
 const STAKE_PRICE = '10'
 
 export default class Contract {
     _airlines = []
+    _flights = []
     _currentAccount = ''
 
 
@@ -69,13 +71,34 @@ export default class Contract {
                             this.flightSuretyApp.methods.registerAirline,
                             this.flightSuretyApp.methods.voteAirline,
                             this.flightSuretyData.methods.isRegistredAirline,
-                            this.flightSuretyApp.methods.airlineQueueState
+                            this.flightSuretyApp.methods.airlineQueueState,
+                            this.flightSuretyApp.methods.registerFlight
                         )
                         await newAirline.refreshState()
                         this.replaceOrPushAirline(newAirline)
                         break
                     case "AIRLINE_REFUSED":
                         this.removeAirline(log.returnValues._airline)
+                        break
+                    case "FLIGHT_REGISTERED":
+                        let newFlight = new Flight(log.returnValues._airline,
+                            log.returnValues._flight,
+                            log.returnValues._timestamp,
+                            log.returnValues._status,
+                            this.flightSuretyApp.methods.fetchFlightStatus
+                        )
+                        this._flights.push(newFlight)
+                        break
+                    case "FlightStatusInfo":
+                        let ret = log.returnValues
+                        this._flights.forEach(flight => {
+                            if (ret._airline.toLowerCase() === flight._airline.toLowerCase() &&
+                                ret._flight === flight.number &&
+                                ret._timestamp === flight.timestamp) {
+                                flight.status = ret._status
+                            }
+                        })
+                        this.triggerRefreshFlights(this)
                         break
                     default:
                         console.log(log)
@@ -97,15 +120,37 @@ export default class Contract {
                         this.flightSuretyApp.methods.registerAirline,
                         this.flightSuretyApp.methods.voteAirline,
                         this.flightSuretyData.methods.isRegistredAirline,
-                        this.flightSuretyApp.methods.airlineQueueState
+                        this.flightSuretyApp.methods.airlineQueueState,
+                        this.flightSuretyApp.methods.registerFlight
                     )
                     await airline.refreshState()
                     this.replaceOrPushAirline(airline)
-                    this.triggerRefreshAirlines(this, this._airlines)
+                    this.triggerRefreshAirlines(this)
                     break
                 case "AIRLINE_REFUSED":
                     this.removeAirline(log.returnValues._airline)
-                    this.triggerRefreshAirlines(this, this._airlines)
+                    this.triggerRefreshAirlines(this)
+                    break
+                case "FLIGHT_REGISTERED":
+                    let newFlight = new Flight(log.returnValues._airline,
+                        log.returnValues._flight,
+                        log.returnValues._timestamp,
+                        log.returnValues._status,
+                        this.flightSuretyApp.methods.fetchFlightStatus
+                    )
+                    this._flights.push(newFlight)
+                    this.triggerRefreshFlights(this)
+                    break
+                case "FlightStatusInfo":
+                    let ret = log.returnValues
+                    this._flights.forEach(flight => {
+                        if (ret._airline.toLowerCase() === flight._airline.toLowerCase() &&
+                            ret._flight === flight.number &&
+                            ret._timestamp === flight.timestamp) {
+                            flight.status = ret._status
+                        }
+                    })
+                    this.triggerRefreshFlights(this)
                     break
                 default:
             }
@@ -125,6 +170,8 @@ export default class Contract {
         // initialize trigger for frontend
         this.updateCurrentAccountElement = () => { }
         this.triggerRefreshAirlines = () => { }
+
+        this.triggerRefreshFlights = () => { }
 
         await callback()
     }
@@ -157,7 +204,8 @@ export default class Contract {
             this.flightSuretyApp.methods.registerAirline,
             this.flightSuretyApp.methods.voteAirline,
             this.flightSuretyData.methods.isRegistredAirline,
-            this.flightSuretyApp.methods.airlineQueueState
+            this.flightSuretyApp.methods.airlineQueueState,
+            this.flightSuretyApp.methods.registerFlight
         )
 
         this._airlines.push(airline)
@@ -221,6 +269,33 @@ export default class Contract {
         }
     }
 
+    async registerFlight(flightNumber) {
+        // first check if caller is in list of known Airlines
+        let callers = this._airlines.filter(airline => airline.address.toLowerCase() === this._currentAccount.toLowerCase())
+        if (callers.length !== 1) {
+            console.error('Number of airlines to call registeration is not corrrect ', callers.length)
+        } else {
+            let airline = callers[0]
+            let timestamp = Math.floor(3600 + (Date.now() / 1000))  // 1hour from now
+            await airline.registerFlight(flightNumber, timestamp)
+
+        }
+
+    }
+
+    async fetchFlightStatus(flightNumber){
+        // find flight
+        let res = this._flights.filter(flight => flight.number.toLowerCase() === flightNumber.toLowerCase())
+        if (res.length !== 1) {
+            console.error('Number of flights is not corrrect ', res.length)
+        } else {
+            let flight = res[0]
+            await flight.fetchFlightStatus(this._currentAccount)
+
+        }
+
+    }
+
     async getMetaskAccountID() {
 
         try {
@@ -240,6 +315,10 @@ export default class Contract {
         return this._airlines
     }
 
+    get flights() {
+        return this._flights
+    }
+
     get currentAccount() {
         return this._currentAccount
     }
@@ -257,11 +336,7 @@ export default class Contract {
     }
 
     removeAirline(address) {
-        console.log('inside remove airline')
         this._airlines = this._airlines.filter(a => {
-            console.log('a.address ', a.address.toLowerCase())
-            console.log('address ', address.toLowerCase())
-            console.log(address.toLowerCase() !== a.address.toLowerCase())
             return address.toLowerCase() !== a.address.toLowerCase()
         })
     }

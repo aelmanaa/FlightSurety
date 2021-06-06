@@ -8,7 +8,12 @@ body {
   position: relative;
   color: #fff;
   left: 700px;
+}
 
+#operational-status{
+  position: relative;
+  color: #fff;
+  left: 350px;
 }
 
 
@@ -51,11 +56,25 @@ body {
   }
 
 .container {
-    margin-top: 200px;
     background-color: #000;
     opacity: 0.9;
     color: #fff;
-    padding: 40px;
+}
+
+.container-1{
+  margin-top: 60px;
+}
+
+.container-2{
+  margin-top: 60px;
+}
+
+.container-3{
+  margin-top: 50px;
+}
+
+.container-4{
+  margin-top: 50px;
 }
 
 .top-20 {

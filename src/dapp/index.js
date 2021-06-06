@@ -13,6 +13,33 @@ let renderBool = (bool) => {
     }
 }
 
+
+let timestampToHumanFormat = (timestamp) => {
+    // timestamp from ETH is in seconds
+    let date = new Date(timestamp * 1000)
+    return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()} ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`
+}
+
+let renderStatusCode = (status) => {
+    switch (status) {
+        case '0':
+            return 'UNKNOWN'
+        case '10':
+            return 'ON TIME'
+        case '20':
+            return 'AIRLINE LATE'
+        case '30':
+            return 'DELAY DUE TO WEATHER'
+        case '40':
+            return 'DELAY DUE TO TECHNICAL ISSUES'
+        case '50':
+            return 'DELAY DUE TO MANY ISSUES'
+        default:
+            console.error('STATUS NOT KNOWN ', status)
+            return ''
+    }
+}
+
 let renderAddress = (address) => {
     return address.substring(0, 4) + '..' + address.substring(address.length - 3, address.length)
 }
@@ -39,30 +66,33 @@ let renderAddress = (address) => {
 
         // render
         updateCurrentAccountElement(contract.currentAccount)
-        displayAirlines(contract, contract.airlines)
+        displayAirlines(contract)
+        displayFlights(contract)
 
 
-        // Read transaction
+        // Read contract status
         contract.isOperational((error, result) => {
-            display('Operational Status', 'Check if contract is operational', [{ label: 'Operational Status', error: error, value: result }]);
-        });
-
-
-        // User-submitted transaction
-        DOM.elid('submit-oracle').addEventListener('click', () => {
-            let flight = DOM.elid('flight-number').value;
-            // Write transaction
-            contract.fetchFlightStatus(flight, (error, result) => {
-                display('Oracles', 'Trigger oracles', [{ label: 'Fetch Flight Status', error: error, value: result.flight + ' ' + result.timestamp }]);
-            })
+            updateContractState(result)
         })
 
+        // stake airline
+        DOM.elid('stake-airline').addEventListener('click', async () => {
+            await contract.stakeAirline()
+        })
+
+
+        // airline register flight
+        DOM.elid('register-flight').addEventListener('click', async () => {
+            let flight = DOM.elid('airline-flight-number').value;
+            await contract.registerFlight(flight)
+        })
 
 
 
         //setup triggers
         contract.updateCurrentAccountElement = updateCurrentAccountElement
         contract.triggerRefreshAirlines = triggerRefreshAirlines
+        contract.triggerRefreshFlights = triggerRefreshFlights
 
     })
 
@@ -70,20 +100,30 @@ let renderAddress = (address) => {
 })()
 
 
+
+function updateContractState(state) {
+    DOM.elid('operational-status').innerHTML = 'Operational Status: ' + state
+}
+
+
 function updateCurrentAccountElement(currentAccount) {
     DOM.elid('current-account').innerHTML = 'Logged in account: ' + currentAccount
 }
 
-function triggerRefreshAirlines(contract, airlines) {
-    displayAirlines(contract, airlines)
+function triggerRefreshAirlines(contract) {
+    displayAirlines(contract)
 }
 
-function displayAirlines(contract, airlines) {
+function triggerRefreshFlights(contract) {
+    displayFlights(contract)
+}
+
+function displayAirlines(contract) {
     DOM.clearTbody('airlines')
     let table = document.getElementById('airlines')
     let tbody = table.appendChild(DOM.tbody())
     let tr, cell
-    for (let airline of airlines) {
+    for (let airline of contract.airlines) {
         tr = tbody.appendChild(DOM.tr({ id: airline.address }))
         tr.append(DOM.th({ scope: 'row' }, renderAddress(airline.address)))
         tr.append(DOM.td({}, renderBool(airline.isRegistered)))
@@ -105,10 +145,6 @@ function displayAirlines(contract, airlines) {
 
     }
 
-    // stake airline
-    DOM.elid('stake-airline').addEventListener('click', async () => {
-        await contract.stakeAirline()
-    })
 
     // register for airline
     for (let domElement of DOM.elemmentsName('register-airline')) {
@@ -133,19 +169,33 @@ function displayAirlines(contract, airlines) {
     }
 }
 
-function display(title, description, results) {
-    let displayDiv = DOM.elid("display-wrapper");
-    let section = DOM.section();
-    section.appendChild(DOM.h2(title));
-    section.appendChild(DOM.h5(description));
-    results.map((result) => {
-        let row = section.appendChild(DOM.div({ className: 'row' }));
-        row.appendChild(DOM.div({ className: 'col-sm-4 field' }, result.label));
-        row.appendChild(DOM.div({ className: 'col-sm-8 field-value' }, result.error ? String(result.error) : String(result.value)));
-        section.appendChild(row);
-    })
-    displayDiv.append(section);
 
+function displayFlights(contract) {
+    DOM.clearTbody('flights')
+    let table = document.getElementById('flights')
+    let tbody = table.appendChild(DOM.tbody())
+    let tr, cell
+    for (let flight of contract.flights) {
+        tr = tbody.appendChild(DOM.tr({ id: flight.number }))
+        tr.append(DOM.th({ scope: 'row' }, renderAddress(flight.airline)))
+        tr.append(DOM.td({}, flight.number.toUpperCase()))
+        tr.append(DOM.td({}, timestampToHumanFormat(flight.timestamp)))
+        tr.append(DOM.td({}, renderStatusCode(flight.status)))
+        cell = tr.appendChild(DOM.td({}))
+        cell.appendChild(DOM.button({ name: 'request-flight-status', className: 'btn btn-primary' }, 'Submit to Oracles'))
+
+    }
+
+    // submit request for oracles
+    for (let domElement of DOM.elemmentsName('request-flight-status')) {
+        domElement.addEventListener('click', async (self) => {
+            let source = self.target
+            let flightNumber = DOM.closestRowParentInTable(source).id
+            await contract.fetchFlightStatus(flightNumber)
+
+        })
+
+    }
 }
 
 
