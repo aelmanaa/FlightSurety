@@ -9,26 +9,6 @@ import Config from './config.json'
 import Web3 from 'web3'
 
 
-let timestampToHumanFormat = (timestamp) => {
-    // timestamp from ETH is in seconds
-    let date = new Date(timestamp * 1000)
-    return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()} ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`
-}
-
-let parseEvent = async (log, web3) => {
-    try {
-        let blockNumber = log.blockNumber
-        let block = await web3.eth.getBlock(blockNumber)
-        let timestamp = block.timestamp
-        let timestampInHumanFormat = timestampToHumanFormat(timestamp)
-        let returnValues = log.returnValues
-
-        console.log(`Event received. Timestamp : ${timestampInHumanFormat} - Event: ${log.event} - TransactionHash: ${log.transactionHash} - Return values: ${JSON.stringify(returnValues)}`)
-
-    } catch (error) {
-        console.log('error while parsing event', error)
-    }
-}
 
 
 export default async () => {
@@ -49,12 +29,6 @@ export default async () => {
 
     let web3ws = new Web3(new Web3.providers.WebsocketProvider(config.url.replace('http', 'ws')))
     let flightSuretyAppws = new web3ws.eth.Contract(FlightSuretyApp.abi, config.appAddress)
-    flightSuretyAppws.events.allEvents().on('data', log => {
-        parseEvent(log, web3ws)
-    }).on('error', (error, receipt) => {
-        console.log('received event error: ', error)
-        console.log('received recept error: ', receipt)
-    })
 
 
     let web3 = new Web3(provider)
@@ -72,7 +46,9 @@ export default async () => {
             new Oracle(acc,
                 flightSuretyApp.methods.registerOracle,
                 flightSuretyApp.methods.getMyIndexes,
-                flightSuretyApp.methods.submitOracleResponse)))
+                flightSuretyApp.methods.submitOracleResponse,
+                flightSuretyApp.methods.isOracleRegistered
+                )))
     } catch (error) {
         console.log('Error while retrieving current account:', error)
         throw new Error('Error while retrieving current account')
@@ -85,7 +61,10 @@ export default async () => {
         passengers,
         oracles,
         flightSuretyApp,
-        web3
+        web3,
+        flightSuretyAppws,
+        web3ws
+
     }
 }
 

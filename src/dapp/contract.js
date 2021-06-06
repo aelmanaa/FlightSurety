@@ -98,7 +98,6 @@ export default class Contract {
                                 flight.status = ret._status
                             }
                         })
-                        this.triggerRefreshFlights(this)
                         break
                     default:
                         console.log(log)

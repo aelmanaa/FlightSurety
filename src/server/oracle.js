@@ -3,11 +3,12 @@ class Oracle {
     _indexes = []
     _isRegistered = false
 
-    constructor(address, registerOracle, getIndexesMethod, submitOracleResponse) {
+    constructor(address, registerOracle, getIndexesMethod, submitOracleResponse, isOracleRegistered) {
         this._address = address
         this._registerOracle = registerOracle
         this._getIndexesMethod = getIndexesMethod
         this._submitOracleResponse = submitOracleResponse
+        this._isOracleRegistered = isOracleRegistered
 
     }
 
@@ -31,6 +32,11 @@ class Oracle {
         return `Oracle resgitered '${this._isRegistered}' . Address is '${this._address}' and indexes are '${this._indexes}'`
     }
 
+    async submitResponse(index, airline, flight, timestamp, statusCode) {
+        await this._submitOracleResponse(index, airline, flight, timestamp, statusCode).send({
+            from: this._address
+        })
+    }
 
     async registerAndIndexes(fee) {
         await this._register(fee)
@@ -50,16 +56,22 @@ class Oracle {
 
 
     async _register(fee) {
-
-        try {
-            await this._registerOracle().send({
-                from: this._address, value: fee
-            })
+        let isRegistered = await this._isOracleRegistered(this._address).call()
+        if(isRegistered){
+            console.log(`oracle ${this._address} already registered, skipping registration`)
             this._isRegistered = true
-        } catch (error) {
-            console.log('Error during registration ')
-            this._isRegistered = false
+        }else{
+            try {
+                await this._registerOracle().send({
+                    from: this._address, value: fee
+                })
+                this._isRegistered = true
+            } catch (error) {
+                console.log('Error during registration ', error.message)
+                this._isRegistered = false
+            }
         }
+
     }
 }
 

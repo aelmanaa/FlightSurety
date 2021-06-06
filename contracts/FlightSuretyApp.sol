@@ -667,6 +667,7 @@ contract FlightSuretyApp {
     function registerOracle() public payable requireIsOperational() {
         // Require registration fee
         require(msg.value >= REGISTRATION_FEE, "Registration fee is required");
+        require(!oracles[msg.sender].isRegistered , "Oracle already registered");
 
         uint8[3] memory indexes = generateIndexes(msg.sender);
 
@@ -675,6 +676,10 @@ contract FlightSuretyApp {
         emit OracleRegistered(msg.sender, msg.value, oracles[msg.sender].isRegistered, oracles[msg.sender].indexes);
     }
 
+function isOracleRegistered(address oracle) public view returns (bool){
+    return oracles[oracle].isRegistered;
+
+}
     function getMyIndexes() public view returns (uint8[3] memory) {
         require(
             oracles[msg.sender].isRegistered,

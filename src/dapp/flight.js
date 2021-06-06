@@ -39,7 +39,7 @@ export default class Flight {
     }
 
     set status(_status) {
-        this._status = status
+        this._status = _status
     }
 
     async fetchFlightStatus(caller) {
