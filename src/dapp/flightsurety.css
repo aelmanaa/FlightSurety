@@ -135,4 +135,17 @@ input {
   th, td {
     text-align: left;
   }
+
+  .td-insurance {
+    display: flex;
+  }
   
+  .td-insurance input {
+    margin-right: 0px;
+    margin-left: 10px;
+    width: 50px;
+  }
+
+  .td-insurance button {
+    margin-left: 10px;
+  }

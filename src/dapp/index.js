@@ -174,15 +174,19 @@ function displayFlights(contract) {
     DOM.clearTbody('flights')
     let table = document.getElementById('flights')
     let tbody = table.appendChild(DOM.tbody())
-    let tr, cell
+    let tr, cell1 , cell2
     for (let flight of contract.flights) {
         tr = tbody.appendChild(DOM.tr({ id: flight.number }))
         tr.append(DOM.th({ scope: 'row' }, renderAddress(flight.airline)))
         tr.append(DOM.td({}, flight.number.toUpperCase()))
         tr.append(DOM.td({}, timestampToHumanFormat(flight.timestamp)))
         tr.append(DOM.td({}, renderStatusCode(flight.status)))
-        cell = tr.appendChild(DOM.td({}))
-        cell.appendChild(DOM.button({ name: 'request-flight-status', className: 'btn btn-primary' }, 'Submit to Oracles'))
+        cell1 = tr.appendChild(DOM.td({}))
+        cell1.appendChild(DOM.button({ name: 'request-flight-status', className: 'btn btn-primary' }, 'Flight status'))
+        cell2 = tr.appendChild(DOM.td({ className: 'td-insurance' }))
+        cell2.appendChild(DOM.input({ name: 'subscribe-insurance-input' }))
+        cell2.appendChild(DOM.span({}, 'ETH'))
+        cell2.appendChild(DOM.button({ name: 'subscribe-insurance', className: 'btn btn-primary' }, 'Subscribe'))
 
     }
 
