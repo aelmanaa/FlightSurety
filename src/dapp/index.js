@@ -215,8 +215,8 @@ function displayFlights(contract) {
     for (let domElement of DOM.elemmentsName('request-flight-status')) {
         domElement.addEventListener('click', async (self) => {
             let source = self.target
-            let flightNumber = DOM.closestRowParentInTable(source).id
-            await contract.fetchFlightStatus(flightNumber)
+            let flightKey = DOM.closestRowParentInTable(source).id
+            await contract.fetchFlightStatus(flightKey)
 
         })
 

@@ -33,7 +33,7 @@ class Oracle {
     }
 
     async submitResponse(index, airline, flight, timestamp, statusCode) {
-        await this._submitOracleResponse(index, airline, flight, timestamp, statusCode).send({
+        return await this._submitOracleResponse(index, airline, flight, timestamp, statusCode).send({
             from: this._address
         })
     }

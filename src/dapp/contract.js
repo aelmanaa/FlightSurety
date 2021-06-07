@@ -68,6 +68,7 @@ export default class Contract {
             for (let log of events) {
                 switch (log.event) {
                     case "OracleRegistered":
+                    case "OracleReport":
                         break
                     case "AIRLINE_REGISTRED":
                     case "AIRLINE_READY_FOR_VOTE":
@@ -94,7 +95,6 @@ export default class Contract {
                             log.returnValues._flight,
                             log.returnValues._timestamp,
                             log.returnValues._status,
-                            this.flightSuretyApp.methods.fetchFlightStatus,
                             log.returnValues._key
                         )
                         this._flights.push(newFlight)
@@ -111,6 +111,7 @@ export default class Contract {
                         })
                         break
                     case "INSURANCE_DEPOSITED":
+                    case "INSURANCE_RELEASED":
                         console.log(log)
                         ret = log.returnValues
                         let passenger = new Passenger(ret._passenger, '0', this.flightSuretyData.methods.getBalance, this.flightSuretyData.methods.pay)
@@ -135,6 +136,7 @@ export default class Contract {
             let ret
             switch (log.event) {
                 case "OracleRegistered":
+                case "OracleReport":
                     break
                 case "AIRLINE_REGISTRED":
                 case "AIRLINE_READY_FOR_VOTE":
@@ -163,7 +165,6 @@ export default class Contract {
                         log.returnValues._flight,
                         log.returnValues._timestamp,
                         log.returnValues._status,
-                        this.flightSuretyApp.methods.fetchFlightStatus,
                         log.returnValues._key
                     )
                     this._flights.push(newFlight)
@@ -182,6 +183,7 @@ export default class Contract {
                     this.triggerRefreshFlights(this)
                     break
                 case "INSURANCE_DEPOSITED":
+                case "INSURANCE_RELEASED":
                     console.log(log)
                     ret = log.returnValues
                     let passenger = new Passenger(ret._passenger, '0', this.flightSuretyData.methods.getBalance, this.flightSuretyData.methods.pay)
@@ -227,20 +229,6 @@ export default class Contract {
         self.flightSuretyApp.methods
             .isOperational()
             .call({ from: self.owner }, callback);
-    }
-
-    fetchFlightStatus(flight, callback) {
-        let self = this;
-        let payload = {
-            airline: self.airlines[0],
-            flight: flight,
-            timestamp: Math.floor(Date.now() / 1000)
-        }
-        self.flightSuretyApp.methods
-            .fetchFlightStatus(payload.airline, payload.flight, payload.timestamp)
-            .send({ from: self.owner }, (error, result) => {
-                callback(error, payload);
-            });
     }
 
     async stakeAirline() {
@@ -330,21 +318,20 @@ export default class Contract {
     }
 
 
-    async fetchFlightStatus(flightNumber) {
+    async fetchFlightStatus(flightKey) {
         // find flight
-        let res = this._flights.filter(flight => flight.number.toLowerCase() === flightNumber.toLowerCase())
+        let res = this._flights.filter(flight => flight.key === flightKey)
         if (res.length !== 1) {
             console.error('Number of flights is not corrrect ', res.length)
         } else {
             let flight = res[0]
-            await flight.fetchFlightStatus(this._currentAccount)
+            await this.flightSuretyApp.methods.fetchFlightStatus(flight.airline, flight.number, flight.timestamp).send({ from: this._currentAccount })
 
         }
-
     }
 
     async withdrawBalance(passengerAddress) {
-        if (passengerAddress !== this._currentAccount) {
+        if (passengerAddress.toLowerCase() !== this._currentAccount.toLowerCase()) {
             console.error(`Cannot withdraw money of another account ${passengerAddress} != ${this._currentAccount}`)
         } else {
             let passenger = this._passengers.filter(pass => pass.address === passengerAddress)[0]

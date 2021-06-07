@@ -15,12 +15,11 @@ export default class Flight {
     _status = ''
     _key = ''
 
-    constructor(_airline, _number, _timestamp, _status, _fetchFlightStatus, _key) {
+    constructor(_airline, _number, _timestamp, _status, _key) {
         this._airline = _airline.toLowerCase()
         this._number = _number
         this._timestamp = _timestamp
         this._status = _status
-        this._fetchFlightStatus = _fetchFlightStatus
         this._key = _key
     }
 
@@ -44,18 +43,8 @@ export default class Flight {
         this._status = _status
     }
 
-    get key(){
+    get key() {
         return this._key
-    }
-
-    async fetchFlightStatus(caller) {
-        try {
-            await this._fetchFlightStatus(this._airline, this._number, this._timestamp).send({ from: caller })
-        } catch (e) {
-            console.log('Error while requesting flight new status ', e)
-            throw new Error('Error while fetching flight status')
-
-        }
     }
 
 }
