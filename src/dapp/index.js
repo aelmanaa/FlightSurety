@@ -1,7 +1,8 @@
 
-import DOM from './dom';
-import Contract from './contract';
-import './flightsurety.css';
+import DOM from './dom'
+import Contract from './contract'
+import './flightsurety.css'
+import Web3 from 'web3'
 
 
 let renderBool = (bool) => {
@@ -11,6 +12,14 @@ let renderBool = (bool) => {
         default:
             return 'NO'
     }
+}
+
+let toEther = (amount) => {
+    return Web3.utils.fromWei(amount,'ether')
+}
+
+let toWei = (amount) => {
+    return Web3.utils.toWei(amount,'ether')
 }
 
 
@@ -68,6 +77,8 @@ let renderAddress = (address) => {
         updateCurrentAccountElement(contract.currentAccount)
         displayAirlines(contract)
         displayFlights(contract)
+        displayDeposits(contract)
+        displayPassengers(contract)
 
 
         // Read contract status
@@ -93,6 +104,8 @@ let renderAddress = (address) => {
         contract.updateCurrentAccountElement = updateCurrentAccountElement
         contract.triggerRefreshAirlines = triggerRefreshAirlines
         contract.triggerRefreshFlights = triggerRefreshFlights
+        contract.triggerRefreshDeposits = triggerRefreshDeposits
+        contract.triggerRefreshPassengers = triggerRefreshPassengers
 
     })
 
@@ -116,6 +129,14 @@ function triggerRefreshAirlines(contract) {
 
 function triggerRefreshFlights(contract) {
     displayFlights(contract)
+}
+
+function triggerRefreshDeposits(contract) {
+    displayDeposits(contract)
+}
+
+function triggerRefreshPassengers(contract) {
+    displayPassengers(contract)
 }
 
 function displayAirlines(contract) {
@@ -176,7 +197,7 @@ function displayFlights(contract) {
     let tbody = table.appendChild(DOM.tbody())
     let tr, cell1 , cell2
     for (let flight of contract.flights) {
-        tr = tbody.appendChild(DOM.tr({ id: flight.number }))
+        tr = tbody.appendChild(DOM.tr({ id: flight.key }))
         tr.append(DOM.th({ scope: 'row' }, renderAddress(flight.airline)))
         tr.append(DOM.td({}, flight.number.toUpperCase()))
         tr.append(DOM.td({}, timestampToHumanFormat(flight.timestamp)))
@@ -200,6 +221,62 @@ function displayFlights(contract) {
         })
 
     }
+
+    for (let domElement of DOM.elemmentsName('subscribe-insurance')) {
+        domElement.addEventListener('click', async (self) => {
+            let source = self.target
+            let flightKey = DOM.closestRowParentInTable(source).id
+            let flightDom = DOM.closestRowParentInTable(source)
+            let deposit = flightDom.getElementsByTagName('input')[0].value
+            await contract.buy(flightKey,toWei(deposit))
+
+        })
+
+    }
+}
+
+
+function displayDeposits(contract) { 
+    DOM.clearTbody('deposits')
+    let table = document.getElementById('deposits')
+    let tbody = table.appendChild(DOM.tbody())
+    let tr, cell
+    for (let deposit of contract.deposits) {
+        tr = tbody.appendChild(DOM.tr({ id: deposit.passenger.address + '-' + deposit.flight.number }))
+        tr.append(DOM.th({ scope: 'row' }, renderAddress(deposit.passenger.address )))
+        tr.append(DOM.td({}, renderAddress(deposit.flight.airline )))
+        tr.append(DOM.td({}, deposit.flight.number.toUpperCase()))
+        tr.append(DOM.td({}, timestampToHumanFormat(deposit.flight.timestamp)))
+        cell = tr.appendChild(DOM.td({}, toEther(deposit.deposit)))
+        cell.appendChild(DOM.span({}, 'ETH'))
+    }
+}
+
+function displayPassengers(contract) {
+    DOM.clearTbody('passengers')
+    let table = document.getElementById('passengers')
+    let tbody = table.appendChild(DOM.tbody())
+    let tr, cell1, cell2
+    for (let passenger of contract.passengers) {
+        tr = tbody.appendChild(DOM.tr({ id: passenger.address }))
+        tr.append(DOM.th({ scope: 'row' }, renderAddress(passenger.address)))
+        cell1 = tr.appendChild(DOM.td({}, toEther(passenger.balance)))
+        cell1.appendChild(DOM.span({}, 'ETH'))
+        cell2 = tr.appendChild(DOM.td({}))
+        cell2.append(DOM.button({ name: 'withdraw-balance', className: 'btn btn-primary' }, 'Withdraw balance'))
+       
+    }
+
+    for (let domElement of DOM.elemmentsName('withdraw-balance')) {
+        domElement.addEventListener('click', async (self) => {
+            let source = self.target
+            let passengerAddress = DOM.closestRowParentInTable(source).id
+            await contract.withdrawBalance(passengerAddress)
+
+        })
+
+    }
+
 }
 
 

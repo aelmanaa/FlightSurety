@@ -13,13 +13,15 @@ export default class Flight {
     _number = ''
     _timestamp = ''
     _status = ''
+    _key = ''
 
-    constructor(_airline, _number, _timestamp, _status, _fetchFlightStatus) {
+    constructor(_airline, _number, _timestamp, _status, _fetchFlightStatus, _key) {
         this._airline = _airline.toLowerCase()
         this._number = _number
         this._timestamp = _timestamp
         this._status = _status
         this._fetchFlightStatus = _fetchFlightStatus
+        this._key = _key
     }
 
     get airline() {
@@ -40,6 +42,10 @@ export default class Flight {
 
     set status(_status) {
         this._status = _status
+    }
+
+    get key(){
+        return this._key
     }
 
     async fetchFlightStatus(caller) {

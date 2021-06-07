@@ -4,6 +4,8 @@ import Config from './config.json'
 import Web3 from 'web3'
 import Airline from './airline'
 import Flight from './flight'
+import Deposit from './deposit'
+import Passenger from './passenger'
 
 
 const STAKE_PRICE = '10'
@@ -12,6 +14,8 @@ export default class Contract {
     _airlines = []
     _flights = []
     _currentAccount = ''
+    _deposits = []
+    _passengers = []
 
 
 
@@ -60,12 +64,15 @@ export default class Contract {
 
         try {
             let events = await this.flightSuretyApp.getPastEvents('allEvents', { fromBlock: 0, toBlock: 'latest' })
+            let ret
             for (let log of events) {
                 switch (log.event) {
+                    case "OracleRegistered":
+                        break
                     case "AIRLINE_REGISTRED":
                     case "AIRLINE_READY_FOR_VOTE":
                     case "AIRLINE_QUEUED":
-
+                        console.log(log)
                         let newAirline = new Airline(log.returnValues._airline,
                             this.flightSuretyApp.methods.stakeAirline,
                             this.flightSuretyApp.methods.registerAirline,
@@ -78,26 +85,42 @@ export default class Contract {
                         this.replaceOrPushAirline(newAirline)
                         break
                     case "AIRLINE_REFUSED":
+                        console.log(log)
                         this.removeAirline(log.returnValues._airline)
                         break
                     case "FLIGHT_REGISTERED":
+                        console.log(log)
                         let newFlight = new Flight(log.returnValues._airline,
                             log.returnValues._flight,
                             log.returnValues._timestamp,
                             log.returnValues._status,
-                            this.flightSuretyApp.methods.fetchFlightStatus
+                            this.flightSuretyApp.methods.fetchFlightStatus,
+                            log.returnValues._key
                         )
                         this._flights.push(newFlight)
                         break
                     case "FlightStatusInfo":
-                        let ret = log.returnValues
-                        this._flights.forEach(flight => {
+                        console.log(log)
+                        ret = log.returnValues
+                        this._flights.forEach((flight) => {
                             if (ret._airline.toLowerCase() === flight._airline.toLowerCase() &&
                                 ret._flight === flight.number &&
                                 ret._timestamp === flight.timestamp) {
                                 flight.status = ret._status
                             }
                         })
+                        break
+                    case "INSURANCE_DEPOSITED":
+                        console.log(log)
+                        ret = log.returnValues
+                        let passenger = new Passenger(ret._passenger, '0', this.flightSuretyData.methods.getBalance, this.flightSuretyData.methods.pay)
+                        await passenger.updateBalance()
+                        let flightKey = ret._key
+                        let totalDeposit = ret._totalDeposit
+                        let flight = this.findFlightByKey(flightKey)
+                        let newDeposit = new Deposit(passenger, flight, totalDeposit)
+                        this.reduceDeposits(newDeposit)
+                        this.reducePassengers(passenger)
                         break
                     default:
                         console.log(log)
@@ -109,11 +132,14 @@ export default class Contract {
         }
 
         this.flightSuretyApp.events.allEvents().on('data', async (log) => {
-            console.log('event received ', log)
+            let ret
             switch (log.event) {
+                case "OracleRegistered":
+                    break
                 case "AIRLINE_REGISTRED":
                 case "AIRLINE_READY_FOR_VOTE":
                 case "AIRLINE_QUEUED":
+                    console.log(log)
                     let airline = new Airline(log.returnValues._airline,
                         this.flightSuretyApp.methods.stakeAirline,
                         this.flightSuretyApp.methods.registerAirline,
@@ -127,21 +153,25 @@ export default class Contract {
                     this.triggerRefreshAirlines(this)
                     break
                 case "AIRLINE_REFUSED":
+                    console.log(log)
                     this.removeAirline(log.returnValues._airline)
                     this.triggerRefreshAirlines(this)
                     break
                 case "FLIGHT_REGISTERED":
+                    console.log(log)
                     let newFlight = new Flight(log.returnValues._airline,
                         log.returnValues._flight,
                         log.returnValues._timestamp,
                         log.returnValues._status,
-                        this.flightSuretyApp.methods.fetchFlightStatus
+                        this.flightSuretyApp.methods.fetchFlightStatus,
+                        log.returnValues._key
                     )
                     this._flights.push(newFlight)
                     this.triggerRefreshFlights(this)
                     break
                 case "FlightStatusInfo":
-                    let ret = log.returnValues
+                    console.log(log)
+                    ret = log.returnValues
                     this._flights.forEach(flight => {
                         if (ret._airline.toLowerCase() === flight._airline.toLowerCase() &&
                             ret._flight === flight.number &&
@@ -151,7 +181,22 @@ export default class Contract {
                     })
                     this.triggerRefreshFlights(this)
                     break
+                case "INSURANCE_DEPOSITED":
+                    console.log(log)
+                    ret = log.returnValues
+                    let passenger = new Passenger(ret._passenger, '0', this.flightSuretyData.methods.getBalance, this.flightSuretyData.methods.pay)
+                    await passenger.updateBalance()
+                    let flightKey = ret._key
+                    let totalDeposit = ret._totalDeposit
+                    let flight = this.findFlightByKey(flightKey)
+                    let newDeposit = new Deposit(passenger, flight, totalDeposit)
+                    this.reduceDeposits(newDeposit)
+                    this.reducePassengers(passenger)
+                    this.triggerRefreshDeposits(this)
+                    this.triggerRefreshPassengers(this)
+                    break
                 default:
+                    console.log(log)
             }
         }).on('error', (error, receipt) => {
             console.log('received event error: ', error)
@@ -171,6 +216,8 @@ export default class Contract {
         this.triggerRefreshAirlines = () => { }
 
         this.triggerRefreshFlights = () => { }
+        this.triggerRefreshDeposits = () => { }
+        this.triggerRefreshPassengers = () => { }
 
         await callback()
     }
@@ -282,7 +329,8 @@ export default class Contract {
 
     }
 
-    async fetchFlightStatus(flightNumber){
+
+    async fetchFlightStatus(flightNumber) {
         // find flight
         let res = this._flights.filter(flight => flight.number.toLowerCase() === flightNumber.toLowerCase())
         if (res.length !== 1) {
@@ -293,6 +341,23 @@ export default class Contract {
 
         }
 
+    }
+
+    async withdrawBalance(passengerAddress) {
+        if (passengerAddress !== this._currentAccount) {
+            console.error(`Cannot withdraw money of another account ${passengerAddress} != ${this._currentAccount}`)
+        } else {
+            let passenger = this._passengers.filter(pass => pass.address === passengerAddress)[0]
+            await passenger.pay()
+            await passenger.updateBalance()
+            this.reducePassengers(passenger)
+            this.triggerRefreshPassengers(this)
+        }
+    }
+
+    async buy(flightKey, deposit) {
+        let flight = this._flights.filter(fl => fl.key === flightKey)[0]
+        await this.flightSuretyApp.methods.buy(flight.airline, flight.number, flight.timestamp).send({ from: this._currentAccount, value: deposit })
     }
 
     async getMetaskAccountID() {
@@ -318,6 +383,14 @@ export default class Contract {
         return this._flights
     }
 
+    get passengers() {
+        return this._passengers
+    }
+
+    get deposits() {
+        return this._deposits
+    }
+
     get currentAccount() {
         return this._currentAccount
     }
@@ -338,5 +411,47 @@ export default class Contract {
         this._airlines = this._airlines.filter(a => {
             return address.toLowerCase() !== a.address.toLowerCase()
         })
+    }
+
+
+    findFlightByKey(flightKey) {
+        let results = this._flights.filter(flight => flight.key === flightKey)
+        if (results.length !== 1) {
+            throw new Error(`Number of flights ${results.length} for this key ${flightKey} is not correct`)
+        } else {
+            return results[0]
+        }
+    }
+
+    reduceDeposits(newDeposit) {
+        console.log('deposit ', newDeposit)
+        let idx = -1
+        this._deposits.forEach((deposit, index) => {
+            if (deposit.passenger.address === newDeposit.passenger.address &&
+                deposit.flight.number === newDeposit.flight.number
+                && deposit.flight.timestamp === newDeposit.flight.timestamp) {
+                idx = index
+            }
+        })
+        if (idx === -1) {
+            this._deposits.push(newDeposit)
+        } else {
+            this._deposits[idx] = newDeposit
+        }
+        console.log('deposits ', this._deposits)
+    }
+
+    reducePassengers(newPassenger) {
+        let idx = -1
+        this._passengers.forEach((passenger, index) => {
+            if (passenger.address === newPassenger.address) {
+                idx = index
+            }
+        })
+        if (idx === -1) {
+            this._passengers.push(newPassenger)
+        } else {
+            this._passengers[idx] = newPassenger
+        }
     }
 }
