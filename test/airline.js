@@ -9,23 +9,26 @@ chai.should()
 
 const { isEventFound } = require('./testConfig')
 
+
+
 contract('Airline Tests', async (accounts) => {
 
     let owner, airlines, flightSuretyData, flightSuretyApp
-    before('setup contract', async () => {
-        owner = accounts[0]
-        airlines = accounts.slice(1)
-        flightSuretyData = await FlightSuretyData.new()
-        flightSuretyApp = await FlightSuretyApp.new()
 
-        await flightSuretyData.registerLinkedSuretyApp(flightSuretyApp.address)
-        await flightSuretyApp.setUp(flightSuretyData.address, airlines[0], { value: web3.utils.toWei('10', 'ether') })
+    contract('Check initial state', async () => {
 
-        // initial funding 
-        await flightSuretyData.fund({ value: web3.utils.toWei('10', 'ether') })
-    })
+        before('setup contract', async () => {
+            owner = accounts[0]
+            airlines = accounts.slice(1)
+            flightSuretyData = await FlightSuretyData.new({ from: owner })
+            flightSuretyApp = await FlightSuretyApp.new({ from: owner })
+            await flightSuretyData.registerLinkedSuretyApp(flightSuretyApp.address, { from: owner })
+            await flightSuretyApp.setUp(flightSuretyData.address, airlines[0], { from: owner, value: web3.utils.toWei('10', 'ether') })
 
-    describe('Check initial state', async () => {
+            // initial funding 
+            await flightSuretyData.fund({ from: owner, value: web3.utils.toWei('10', 'ether') })
+
+        })
 
         it('1st airline is registered', async () => {
             let isRegistered = await flightSuretyData.isRegistredAirline(airlines[0])
@@ -52,14 +55,27 @@ contract('Airline Tests', async (accounts) => {
 
     })
 
-    describe('Stake airline before registration', async () => {
+    contract('Stake airline before registration', async () => {
+
+        before('setup contract', async () => {
+            owner = accounts[0]
+            airlines = accounts.slice(1)
+            flightSuretyData = await FlightSuretyData.new({ from: owner })
+            flightSuretyApp = await FlightSuretyApp.new({ from: owner })
+            await flightSuretyData.registerLinkedSuretyApp(flightSuretyApp.address, { from: owner })
+            await flightSuretyApp.setUp(flightSuretyData.address, airlines[0], { from: owner, value: web3.utils.toWei('10', 'ether') })
+
+            // initial funding 
+            await flightSuretyData.fund({ from: owner, value: web3.utils.toWei('10', 'ether') })
+
+        })
 
         it('Only a non registered airline can stake', async () => {
             await flightSuretyApp.stakeAirline({ from: airlines[0] }).should.be.rejectedWith('Airline already registred')
         })
 
         it('Must pay > 10eth to stake', async () => {
-            await flightSuretyApp.stakeAirline({ from: airlines[1], value: web3.utils.toWei('1', 'ether') }).should.be.rejectedWith('Airline registration fee is required');
+            await flightSuretyApp.stakeAirline({ from: airlines[10], value: web3.utils.toWei('1', 'ether') }).should.be.rejectedWith('Airline registration fee is required');
         })
 
         it('Stake, change returned back', async () => {
@@ -68,7 +84,6 @@ contract('Airline Tests', async (accounts) => {
             let result = await flightSuretyApp.stakeAirline({ from: newAirline, value: web3.utils.toWei('40', 'ether'), gasPrice: '0' })
             const newAirlineBalance = web3.utils.toBN(await web3.eth.getBalance(newAirline))
             const delta = web3.utils.fromWei(originalAirlineBalance.sub(newAirlineBalance), 'ether')
-
             // check balance
             expect(delta, 'Error: Airline didnt get the right change').to.equal('10')
 
@@ -95,18 +110,27 @@ contract('Airline Tests', async (accounts) => {
 
     })
 
-    describe('Register airline', async () => {
 
-        before('stake', async () => {
+
+    contract('Register airline', async () => {
+
+        before('setup contract', async () => {
+            owner = accounts[0]
+            airlines = accounts.slice(1)
+            flightSuretyData = await FlightSuretyData.new({ from: owner })
+            flightSuretyApp = await FlightSuretyApp.new({ from: owner })
+            await flightSuretyData.registerLinkedSuretyApp(flightSuretyApp.address, { from: owner })
+            await flightSuretyApp.setUp(flightSuretyData.address, airlines[0], { from: owner, value: web3.utils.toWei('10', 'ether') })
+
+            // initial funding 
+            await flightSuretyData.fund({ from: owner, value: web3.utils.toWei('100', 'ether') })
             await flightSuretyApp.stakeAirline({ from: airlines[2], value: web3.utils.toWei('10', 'ether') })
+
         })
 
-        it('Only a non registered airline can be registered', async () => {
-            await flightSuretyApp.registerAirline(airlines[0], { from: airlines[0] }).should.be.rejectedWith('Airline already registred')
-        })
 
         it('Must be in queue for registration (has already staked)', async () => {
-            await flightSuretyApp.registerAirline(airlines[3], { from: airlines[0] }).should.be.rejectedWith('Airline must be queued for registration')
+            await flightSuretyApp.registerAirline(airlines[3], { from: airlines[10] }).should.be.rejectedWith('Airline must be queued for registration')
         })
 
         it('Must be already registered airline in order to register another airline)', async () => {
@@ -136,15 +160,29 @@ contract('Airline Tests', async (accounts) => {
 
     })
 
-    describe('Consensus checks', async () => {
 
-        before('register 4 airlines', async () => {
-            // airlines[2] and airlines[0] registered at this stage
+
+    contract('Consensus checks', async () => {
+
+        beforeEach('register 4 airlines', async () => {
+            owner = accounts[0]
+            airlines = accounts.slice(1)
+            flightSuretyData = await FlightSuretyData.new({ from: owner })
+            flightSuretyApp = await FlightSuretyApp.new({ from: owner })
+            await flightSuretyData.registerLinkedSuretyApp(flightSuretyApp.address, { from: owner })
+            await flightSuretyApp.setUp(flightSuretyData.address, airlines[0], { from: owner, value: web3.utils.toWei('10', 'ether') })
+
+            // initial funding & make sure 2 airlines registered
+            await flightSuretyData.fund({ from: owner, value: web3.utils.toWei('100', 'ether') })
+            await flightSuretyApp.stakeAirline({ from: airlines[2], value: web3.utils.toWei('10', 'ether') })
+            await flightSuretyApp.registerAirline(airlines[2], { from: airlines[0] })
+
+
+
 
             // register airline[3]
-            await flightSuretyApp.stakeAirline({ from: airlines[3], value: web3.utils.toWei('10', 'ether') })
+            let res = await flightSuretyApp.stakeAirline({ from: airlines[3], value: web3.utils.toWei('10', 'ether') })
             let result = await flightSuretyApp.registerAirline(airlines[3], { from: airlines[0] })
-
             // register airline[4]
             await flightSuretyApp.stakeAirline({ from: airlines[4], value: web3.utils.toWei('10', 'ether') })
             result = await flightSuretyApp.registerAirline(airlines[4], { from: airlines[2] })
@@ -153,7 +191,9 @@ contract('Airline Tests', async (accounts) => {
             assert.equal(numRegistered, 4, `Number of registered airlines ${numRegistered} should be 4`)
 
             // register airline[1], should be put in the queue for vote
+            await flightSuretyApp.stakeAirline({ from: airlines[1], value: web3.utils.toWei('10', 'ether') })
             result = await flightSuretyApp.registerAirline(airlines[1], { from: airlines[3] })
+
 
             expectEvent(result, 'AIRLINE_READY_FOR_VOTE', { _airline: airlines[1] })
             expectEvent(result, 'AIRLINE_VOTED_YES', { _airline: airlines[1], _voter: airlines[3] })
@@ -174,22 +214,6 @@ contract('Airline Tests', async (accounts) => {
             assert.equal(state.isReadyForVote, true, `Airline should  be ready for vote`)
             assert.equal(state.votesInFavor.toString(), '1', `Airline should  have received 1 vote`)
             assert.equal(state.votesAgainst.toString(), '0', `Airline should  have received 0 vote against`)
-        })
-
-        it('airline1 cannot stake as it is ready for vote', async () => {
-            await flightSuretyApp.stakeAirline({ from: airlines[1], value: web3.utils.toWei('10', 'ether') }).should.be.rejectedWith('Airline already in the queue for registration')
-        })
-
-        it('airline1 cannot be registered again', async () => {
-            await flightSuretyApp.registerAirline(airlines[1], { from: airlines[0] }).should.be.rejectedWith('The airline is in the queue for vote')
-        })
-
-        it('registrer airline cannot vote', async () => {
-            await flightSuretyApp.voteAirline(airlines[1], true, { from: airlines[3] }).should.be.rejectedWith('You cannot vote for an airline twice')
-        })
-
-        it('airline must be in queue for vote', async () => {
-            await flightSuretyApp.voteAirline(airlines[5], true, { from: airlines[3] }).should.be.rejectedWith('The airline must be the queue for vote')
         })
 
         it('airline registered with > 50% favor', async () => {
@@ -229,6 +253,15 @@ contract('Airline Tests', async (accounts) => {
         })
 
         it('consensus can refuse airline', async () => {
+
+            //1st register ailrine1
+            await flightSuretyApp.voteAirline(airlines[1], true, { from: airlines[0] })
+            await flightSuretyApp.voteAirline(airlines[1], false, { from: airlines[2] })
+            await flightSuretyApp.voteAirline(airlines[1], true, { from: airlines[4] })
+            let res = await flightSuretyData.isRegistredAirline(airlines[1])
+            assert.equal(res, true, "Airline not registered")
+
+
             // there are 5 airlines at this stage
             await flightSuretyApp.stakeAirline({ from: airlines[5], value: web3.utils.toWei('10', 'ether') })
 
@@ -263,6 +296,65 @@ contract('Airline Tests', async (accounts) => {
             assert.equal(state.votesInFavor.toString(), '0', `Airline should not be in the queue`)
             assert.equal(state.votesAgainst.toString(), '0', `Airline should not be in the queue`)
 
+        })
+
+    })
+
+    contract('Negative tests', async () => {
+
+        before('register 4 airlines', async () => {
+            owner = accounts[0]
+            airlines = accounts.slice(1)
+            flightSuretyData = await FlightSuretyData.new({ from: owner })
+            flightSuretyApp = await FlightSuretyApp.new({ from: owner })
+            await flightSuretyData.registerLinkedSuretyApp(flightSuretyApp.address, { from: owner })
+            await flightSuretyApp.setUp(flightSuretyData.address, airlines[0], { from: owner, value: web3.utils.toWei('10', 'ether') })
+
+            // initial funding & make sure 2 airlines registered
+            await flightSuretyData.fund({ from: owner, value: web3.utils.toWei('100', 'ether') })
+            await flightSuretyApp.stakeAirline({ from: airlines[2], value: web3.utils.toWei('10', 'ether') })
+            await flightSuretyApp.registerAirline(airlines[2], { from: airlines[0] })
+
+
+
+
+            // register airline[3]
+            let res = await flightSuretyApp.stakeAirline({ from: airlines[3], value: web3.utils.toWei('10', 'ether') })
+            let result = await flightSuretyApp.registerAirline(airlines[3], { from: airlines[0] })
+            // register airline[4]
+            await flightSuretyApp.stakeAirline({ from: airlines[4], value: web3.utils.toWei('10', 'ether') })
+            result = await flightSuretyApp.registerAirline(airlines[4], { from: airlines[2] })
+
+            let numRegistered = await flightSuretyData.numberOfRegistredAirlines()
+            assert.equal(numRegistered, 4, `Number of registered airlines ${numRegistered} should be 4`)
+
+            // register airline[1], should be put in the queue for vote
+            await flightSuretyApp.stakeAirline({ from: airlines[1], value: web3.utils.toWei('10', 'ether') })
+            result = await flightSuretyApp.registerAirline(airlines[1], { from: airlines[3] })
+
+
+            expectEvent(result, 'AIRLINE_READY_FOR_VOTE', { _airline: airlines[1] })
+            expectEvent(result, 'AIRLINE_VOTED_YES', { _airline: airlines[1], _voter: airlines[3] })
+
+        })
+
+        it('airline cannot stake once it is ready for vote', async () => {
+            await flightSuretyApp.stakeAirline({ from: airlines[10], value: web3.utils.toWei('10', 'ether') })
+            await flightSuretyApp.stakeAirline({ from: airlines[10], value: web3.utils.toWei('10', 'ether') }).should.be.rejectedWith('Airline already in the queue for registration')
+        })
+
+        it('airline cannot be registered twice', async () => {
+            await flightSuretyApp.stakeAirline({ from: airlines[11], value: web3.utils.toWei('10', 'ether') })
+            await flightSuretyApp.registerAirline(airlines[11], { from: airlines[2] })
+            await flightSuretyApp.registerAirline(airlines[11], { from: airlines[2] }).should.be.rejectedWith('The airline is in the queue for vote')
+        })
+
+        it('registrer airline cannot vote', async () => {
+            await flightSuretyApp.voteAirline(airlines[1], true, { from: airlines[3] }).should.be.rejectedWith('You cannot vote for an airline twice')
+        })
+
+        it('airline must be in queue for vote', async () => {
+            await flightSuretyApp.voteAirline(airlines[5], true, { from: airlines[4] }).should.be.rejectedWith('The airline must be the queue for vote')
         })
 
     })

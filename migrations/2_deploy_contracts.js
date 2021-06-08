@@ -13,19 +13,12 @@ module.exports = async function (deployer, network, accounts) {
     await flightSuretyData.registerLinkedSuretyApp(FlightSuretyApp.address)
     await flightSuretyData.fund({ value: web3.utils.toWei('100', 'ether'), from: accounts[0] })
     await flightSuretyApp.setUp(FlightSuretyData.address, firstAirline, { from: accounts[0], value: web3.utils.toWei('100', 'ether') })
-    console.log('lol')
-    console.log(network)
-    console.log(network.gas)
-    console.log(deployer.networks)
-    console.log(deployer.networks[deployer.network])
-    console.log(deployer.networks[deployer.network].gas)
 
     let config = {
         localhost: {
             url: 'http://localhost:8545',
             dataAddress: FlightSuretyData.address,
-            appAddress: FlightSuretyApp.address,
-            gas: network.gas
+            appAddress: FlightSuretyApp.address
         }
     }
     fs.writeFileSync(__dirname + '/../src/dapp/config.json', JSON.stringify(config, null, '\t'), 'utf-8');

@@ -11,13 +11,13 @@ contract('Check operational (stop loss)', async (accounts) => {
     let flightSuretyData, flightSuretyApp, owner, airlines
 
     before('setup contract', async () => {
-        flightSuretyData = await FlightSuretyData.new()
-        flightSuretyApp = await FlightSuretyApp.new()
         owner = accounts[0]
         airlines = accounts.slice(1)
+        flightSuretyData = await FlightSuretyData.new({ from: owner })
+        flightSuretyApp = await FlightSuretyApp.new({ from: owner })
 
-        await flightSuretyData.registerLinkedSuretyApp(flightSuretyApp.address)
-        await flightSuretyApp.setUp(flightSuretyData.address, airlines[0], { value: web3.utils.toWei('10', 'ether') })
+        await flightSuretyData.registerLinkedSuretyApp(flightSuretyApp.address, { from: owner })
+        await flightSuretyApp.setUp(flightSuretyData.address, airlines[0], { from: owner, value: web3.utils.toWei('10', 'ether') })
     })
 
     /****************************************************************************************/
@@ -38,8 +38,11 @@ contract('Check operational (stop loss)', async (accounts) => {
     it(`(multiparty) can block access to setOperatingStatus() for non-Contract Owner account`, async function () {
 
         // Ensure that access is denied for non-Contract Owner account
-        await flightSuretyData.setOperatingStatus(false, { from: accounts[5] }).should.be.rejectedWith('Caller is not contract owner')
-        await flightSuretyApp.setOperatingStatus(false, { from: accounts[5] }).should.be.rejectedWith('Caller is not contract owner')
+
+        await flightSuretyData.setOperatingStatus(false, { from: airlines[5] }).should.be.rejectedWith('Caller is not contract owner')
+
+        await flightSuretyApp.setOperatingStatus(false, { from: airlines[6] }).should.be.rejectedWith('Caller is not contract owner')
+
 
     });
 
@@ -56,8 +59,7 @@ contract('Check operational (stop loss)', async (accounts) => {
 
         await flightSuretyData.setOperatingStatus(false, { from: owner })
 
-
-        await flightSuretyData.registerAirline(airlines[0]).should.be.rejectedWith('Contract is currently not operational')
+        await flightSuretyData.registerAirline(airlines[1], { from: owner }).should.be.rejectedWith('Contract is currently not operational')
 
 
         // Set it back for other tests to work
@@ -66,9 +68,7 @@ contract('Check operational (stop loss)', async (accounts) => {
 
         await flightSuretyApp.setOperatingStatus(false, { from: owner })
 
-
-        await flightSuretyApp.registerAirline(airlines[0]).should.be.rejectedWith('Contract is currently not operational')
-
+        await flightSuretyApp.registerAirline(airlines[1], { from: airlines[0] }).should.be.rejectedWith('Contract is currently not operational')
 
         // Set it back for other tests to work
         await flightSuretyApp.setOperatingStatus(true, { from: owner })

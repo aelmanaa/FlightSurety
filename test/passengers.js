@@ -23,149 +23,270 @@ contract('Passengers', async (accounts) => {
     const PASSENGER_INSURANCE_LIMIT = '1'
 
     let owner, firstAirline, passengers, oracles, flightSuretyData, flightSuretyApp, flight, timestamp, flightTwo
-    before('setup contract', async () => {
-        owner = accounts[0]
-        firstAirline = accounts[1]
-        passengers = accounts.slice(2, 5)
-        oracles = accounts.slice(5)
 
-        flightSuretyData = await FlightSuretyData.new()
-        flightSuretyApp = await FlightSuretyApp.new()
+    contract('test buying', async () => {
 
-        await flightSuretyData.registerLinkedSuretyApp(flightSuretyApp.address)
-        await flightSuretyApp.setUp(flightSuretyData.address, firstAirline, { value: web3.utils.toWei('10', 'ether'), from: owner })
+        contract('test negative', async () => {
 
-        // register flight
-        flight = 'ND1309'; // Course number
-        timestamp = Math.floor(3600 + (Date.now() / 1000))  // 1hour from now
-        await flightSuretyApp.registerFlight(firstAirline, flight, timestamp)
+            before('setup contract', async () => {
+                owner = accounts[0]
+                firstAirline = accounts[1]
+                passengers = accounts.slice(2, 10)
+                oracles = accounts.slice(10)
 
-        flightTwo = 'ND1310'
-        await flightSuretyApp.registerFlight(firstAirline, flightTwo, timestamp)
+                flightSuretyData = await FlightSuretyData.new({ from: owner })
+                flightSuretyApp = await FlightSuretyApp.new({ from: owner })
+                await flightSuretyData.registerLinkedSuretyApp(flightSuretyApp.address)
+                await flightSuretyApp.setUp(flightSuretyData.address, firstAirline, { value: web3.utils.toWei('10', 'ether'), from: owner })
+                // initial funding 
+                await flightSuretyData.fund({ value: web3.utils.toWei('10', 'ether'), from: owner })
 
-        // initial funding 
-        await flightSuretyData.fund({ value: web3.utils.toWei('10', 'ether'), from: owner })
+                let fee = await flightSuretyApp.REGISTRATION_FEE.call()
 
-        // Register oracles
-        let fee = await flightSuretyApp.REGISTRATION_FEE.call()
+                async function registerOracle(oracle) {
+                    await flightSuretyApp.registerOracle({ from: oracle, value: fee })
 
-        for (let a = 0; a < TEST_ORACLES_COUNT; a++) {
-            try {
-                await flightSuretyApp.registerOracle({ from: oracles[a], value: fee })
-            } catch (e1) {
-                await sleepNow(2000)
-                //retry 2 times with exponential backoff, there are random revert issues when the loop is too fast
-                try {
-                    await flightSuretyApp.registerOracle({ from: oracles[a], value: fee })
                 }
-                catch (e2) {
-                    await sleepNow(4000)
+
+                // register flight
+                flight = 'ND1309'; // Course number
+                timestamp = Math.floor(3600 + (Date.now() / 1000))  // 1hour from now
+                await flightSuretyApp.registerFlight(firstAirline, flight, timestamp, { from: firstAirline })
+
+                flightTwo = 'ND1310'
+                await flightSuretyApp.registerFlight(firstAirline, flightTwo, timestamp, { from: firstAirline })
+
+                for (oracle of oracles) {
                     try {
-                        await flightSuretyApp.registerOracle({ from: oracles[a], value: fee })
-                    } catch (e3) {
-                        await sleepNow(8000)
-                        await flightSuretyApp.registerOracle({ from: oracles[a], value: fee })
+                        await registerOracle(oracle)
+                    } catch (e1) {
+                        await sleepNow(2000)
+                        //retry 2 times with exponential backoff, there are random revert issues when the loop is too fast
+                        try {
+                            await registerOracle(oracle)
+                        }
+                        catch (e2) {
+                            await sleepNow(4000)
+                            try {
+                                await registerOracle(oracle)
+                            } catch (e3) {
+                                await sleepNow(8000)
+                                await registerOracle(oracle)
+                            }
+                        }
+
                     }
                 }
 
-            }
-        }
+            })
+
+            it('must be known airline', async () => {
+                //owner is not airline
+                await flightSuretyApp.buy(owner, flight, timestamp, { value: '1', from: passengers[0] }).should.be.rejectedWith('Airline not registred')
+            })
+
+            it('require valid flight number', async () => {
+                await flightSuretyApp.buy(firstAirline, '', timestamp, { value: '1', from: passengers[1] }).should.be.rejectedWith('Flight number not valid')
+            })
+
+            it('require valid timestamp', async () => {
+                await flightSuretyApp.buy(firstAirline, flight, Math.floor((Date.now() / 1000) - 3600), { value: '1', from: passengers[2] }).should.be.rejectedWith('Flight cannot be in the past')
+            })
+
+            it('require registred flight', async () => {
+                await flightSuretyApp.buy(firstAirline, 'ND1409', timestamp, { value: '1', from: passengers[4] }).should.be.rejectedWith('Flight must be registered')
+
+            })
+
+
+            it('cannot deposit once deposit limit reached', async () => {
+                let key = await flightSuretyApp.getFlightKey(firstAirline, flight, timestamp)
+                let result = await flightSuretyApp.buy(firstAirline, flight, timestamp, { value: web3.utils.toWei(PASSENGER_INSURANCE_LIMIT, 'ether'), from: passengers[5] })
+
+                // check event
+                expectEvent(result, 'INSURANCE_DEPOSITED', { _passenger: passengers[5], _key: key, _depositedAmount: web3.utils.toWei(PASSENGER_INSURANCE_LIMIT, 'ether'), _totalDeposit: web3.utils.toWei(PASSENGER_INSURANCE_LIMIT, 'ether') })
+                await flightSuretyApp.buy(firstAirline, flight, timestamp, { value: web3.utils.toWei(PASSENGER_INSURANCE_LIMIT, 'ether'), from: passengers[5] }).should.be.rejectedWith('Insurance limit amount exceeded')
+
+            })
+
+        })
+
+
+        contract('test deposits', async () => {
+
+            before('setup contract', async () => {
+                owner = accounts[0]
+                firstAirline = accounts[1]
+                passengers = accounts.slice(2, 10)
+                oracles = accounts.slice(10)
+
+                flightSuretyData = await FlightSuretyData.new({ from: owner })
+                flightSuretyApp = await FlightSuretyApp.new({ from: owner })
+                await flightSuretyData.registerLinkedSuretyApp(flightSuretyApp.address)
+                await flightSuretyApp.setUp(flightSuretyData.address, firstAirline, { value: web3.utils.toWei('10', 'ether'), from: owner })
+                // initial funding 
+                await flightSuretyData.fund({ value: web3.utils.toWei('10', 'ether'), from: owner })
+
+                let fee = await flightSuretyApp.REGISTRATION_FEE.call()
+
+                async function registerOracle(oracle) {
+                    await flightSuretyApp.registerOracle({ from: oracle, value: fee })
+
+                }
+
+                // register flight
+                flight = 'ND1309'; // Course number
+                timestamp = Math.floor(3600 + (Date.now() / 1000))  // 1hour from now
+                await flightSuretyApp.registerFlight(firstAirline, flight, timestamp, { from: firstAirline })
+
+                flightTwo = 'ND1310'
+                await flightSuretyApp.registerFlight(firstAirline, flightTwo, timestamp, { from: firstAirline })
+
+                for (oracle of oracles) {
+                    try {
+                        await registerOracle(oracle)
+                    } catch (e1) {
+                        await sleepNow(2000)
+                        //retry 2 times with exponential backoff, there are random revert issues when the loop is too fast
+                        try {
+                            await registerOracle(oracle)
+                        }
+                        catch (e2) {
+                            await sleepNow(4000)
+                            try {
+                                await registerOracle(oracle)
+                            } catch (e3) {
+                                await sleepNow(8000)
+                                await registerOracle(oracle)
+                            }
+                        }
+
+                    }
+                }
+
+            })
+            it('passenger 1 can deposit several times in flight one', async () => {
+                let key = await flightSuretyApp.getFlightKey(firstAirline, flight, timestamp)
+                let result = await flightSuretyApp.buy(firstAirline, flight, timestamp, { value: web3.utils.toWei('0.5', 'ether'), from: passengers[1] })
+                expectEvent(result, 'INSURANCE_DEPOSITED', { _passenger: passengers[1], _key: key, _depositedAmount: web3.utils.toWei('0.5', 'ether'), _totalDeposit: web3.utils.toWei('0.5', 'ether') })
+
+                result = await flightSuretyApp.buy(firstAirline, flight, timestamp, { value: web3.utils.toWei('0.5', 'ether'), from: passengers[1] })
+                expectEvent(result, 'INSURANCE_DEPOSITED', { _passenger: passengers[1], _key: key, _depositedAmount: web3.utils.toWei('0.5', 'ether'), _totalDeposit: web3.utils.toWei('1', 'ether') })
+
+            })
+
+            it('passenger2 can also deposit for flight one ', async () => {
+                let key = await flightSuretyApp.getFlightKey(firstAirline, flight, timestamp)
+                let result = await flightSuretyApp.buy(firstAirline, flight, timestamp, { value: web3.utils.toWei('0.5', 'ether'), from: passengers[2] })
+                expectEvent(result, 'INSURANCE_DEPOSITED', { _passenger: passengers[2], _key: key, _depositedAmount: web3.utils.toWei('0.5', 'ether'), _totalDeposit: web3.utils.toWei('0.5', 'ether') })
+
+            })
+
+            it('same passenger can deposit for another flight', async () => {
+                let key = await flightSuretyApp.getFlightKey(firstAirline, flightTwo, timestamp)
+
+                let result = await flightSuretyApp.buy(firstAirline, flightTwo, timestamp, { value: web3.utils.toWei('0.5', 'ether'), from: passengers[1] })
+                expectEvent(result, 'INSURANCE_DEPOSITED', { _passenger: passengers[1], _key: key, _depositedAmount: web3.utils.toWei('0.5', 'ether'), _totalDeposit: web3.utils.toWei('0.5', 'ether') })
+
+                // check total deposit should be 1
+                let keyOne = await flightSuretyApp.getFlightKey(firstAirline, flight, timestamp)
+                let depositOne = await flightSuretyData.getDeposit(passengers[1], keyOne)
+                let depositTwo = await flightSuretyData.getDeposit(passengers[1], key)
+                assert.equal(depositOne.toString(), web3.utils.toWei('1', 'ether'), 'Deposit1 not correct')
+                assert.equal(depositTwo.toString(), web3.utils.toWei('0.5', 'ether'), 'Deposit2 not correct')
+            })
+
+            it('flights have the right passenger number', async () => {
+                let flightOnePassengerNumber = await flightSuretyApp.getFlightPassengersNumber(firstAirline, flight, timestamp)
+                let flightTwoPassengerNumber = await flightSuretyApp.getFlightPassengersNumber(firstAirline, flightTwo, timestamp)
+
+                assert.equal(flightOnePassengerNumber.toString(), '2', 'Number of passengers not correct')
+                assert.equal(flightTwoPassengerNumber.toString(), '1', 'Number of passengers not correct')
+            })
+
+        })
+
 
     })
 
-    describe('test buying', async () => {
-        it('must be known ariline', async () => {
-            //owner is not airline
-            await flightSuretyApp.buy(owner, flight, timestamp, { value: '1', from: passengers[0] }).should.be.rejectedWith('Airline not registred')
-        })
-
-        it('require valid flight number', async () => {
-            await flightSuretyApp.buy(firstAirline, '', timestamp, { value: '1', from: passengers[0] }).should.be.rejectedWith('Flight number not valid')
-        })
-
-        it('require valid timestamp', async () => {
-            await flightSuretyApp.buy(firstAirline, flight, Math.floor((Date.now() / 1000) - 3600), { value: '1', from: passengers[0] }).should.be.rejectedWith('Flight cannot be in the past')
-        })
-
-        it('require registred flight', async () => {
-            await flightSuretyApp.buy(firstAirline, 'ND1409', timestamp, { value: '1', from: passengers[0] }).should.be.rejectedWith('Flight must be registered')
-
-        })
-
-        it('can deposit full amount', async () => {
-            let key = await flightSuretyApp.getFlightKey(firstAirline, flight, timestamp)
-            let result = await flightSuretyApp.buy(firstAirline, flight, timestamp, { value: web3.utils.toWei(PASSENGER_INSURANCE_LIMIT, 'ether'), from: passengers[0] })
-
-
-            // check event
-            expectEvent(result, 'INSURANCE_DEPOSITED', { _passenger: passengers[0], _key: key, _depositedAmount: web3.utils.toWei(PASSENGER_INSURANCE_LIMIT, 'ether'), _totalDeposit: web3.utils.toWei(PASSENGER_INSURANCE_LIMIT, 'ether') })
-        })
-        it('cannot deposit once deposit limit reached', async () => {
-            await flightSuretyApp.buy(firstAirline, flight, timestamp, { value: web3.utils.toWei(PASSENGER_INSURANCE_LIMIT, 'ether'), from: passengers[0] }).should.be.rejectedWith('Insurance limit amount exceeded')
-
-        })
-
-        it('can deposit several times', async () => {
-            let key = await flightSuretyApp.getFlightKey(firstAirline, flight, timestamp)
-            let result = await flightSuretyApp.buy(firstAirline, flight, timestamp, { value: web3.utils.toWei('0.5', 'ether'), from: passengers[1] })
-            expectEvent(result, 'INSURANCE_DEPOSITED', { _passenger: passengers[1], _key: key, _depositedAmount: web3.utils.toWei('0.5', 'ether'), _totalDeposit: web3.utils.toWei('0.5', 'ether') })
-
-            result = await flightSuretyApp.buy(firstAirline, flight, timestamp, { value: web3.utils.toWei('0.5', 'ether'), from: passengers[1] })
-            expectEvent(result, 'INSURANCE_DEPOSITED', { _passenger: passengers[1], _key: key, _depositedAmount: web3.utils.toWei('0.5', 'ether'), _totalDeposit: web3.utils.toWei('1', 'ether') })
-
-            await flightSuretyApp.buy(firstAirline, flight, timestamp, { value: web3.utils.toWei(PASSENGER_INSURANCE_LIMIT, 'ether'), from: passengers[1] }).should.be.rejectedWith('Insurance limit amount exceeded')
-        })
-
-        it('same passenger can deposit for another flight', async () => {
-            let key = await flightSuretyApp.getFlightKey(firstAirline, flightTwo, timestamp)
-
-            let result = await flightSuretyApp.buy(firstAirline, flightTwo, timestamp, { value: web3.utils.toWei('0.5', 'ether'), from: passengers[1] })
-            expectEvent(result, 'INSURANCE_DEPOSITED', { _passenger: passengers[1], _key: key, _depositedAmount: web3.utils.toWei('0.5', 'ether'), _totalDeposit: web3.utils.toWei('0.5', 'ether') })
-
-            // check total deposit should be 1
-            let keyOne = await flightSuretyApp.getFlightKey(firstAirline, flight, timestamp)
-            let depositOne = await flightSuretyData.getDeposit(passengers[1], keyOne)
-            let depositTwo = await flightSuretyData.getDeposit(passengers[1], key)
-            assert.equal(depositOne.toString(), web3.utils.toWei('1', 'ether'), 'Deposit1 not correct')
-            assert.equal(depositTwo.toString(), web3.utils.toWei('0.5', 'ether'), 'Deposit2 not correct')
-        })
-
-        it('flights have the right passenger number', async () => {
-            let flightOnePassengerNumber = await flightSuretyApp.getFlightPassengersNumber(firstAirline, flight, timestamp)
-            let flightTwoPassengerNumber = await flightSuretyApp.getFlightPassengersNumber(firstAirline, flightTwo, timestamp)
-
-            assert.equal(flightOnePassengerNumber.toString(), '2', 'Number of passengers not correct')
-            assert.equal(flightTwoPassengerNumber.toString(), '1', 'Number of passengers not correct')
-        })
-    })
-
-    describe('test release insurance', async () => {
-        // passenger 0 took insurance for 1 flight & passenger 1 took insurnace for 2 flights
+    contract('test insurance release', async () => {
         let resultFlightOne
-        let insurees
-        before('request flight status', async () => {
+        before('setup contract', async () => {
+            owner = accounts[0]
+            firstAirline = accounts[1]
+            passengers = accounts.slice(2, 10)
+            oracles = accounts.slice(10)
+
+            flightSuretyData = await FlightSuretyData.new({ from: owner })
+            flightSuretyApp = await FlightSuretyApp.new({ from: owner })
+            await flightSuretyData.registerLinkedSuretyApp(flightSuretyApp.address)
+            await flightSuretyApp.setUp(flightSuretyData.address, firstAirline, { value: web3.utils.toWei('10', 'ether'), from: owner })
+            // initial funding 
+            await flightSuretyData.fund({ value: web3.utils.toWei('10', 'ether'), from: owner })
+
+            let fee = await flightSuretyApp.REGISTRATION_FEE.call()
+
+            async function registerOracle(oracle) {
+                await flightSuretyApp.registerOracle({ from: oracle, value: fee })
+
+            }
+
+            // register flight
+            flight = 'ND1309'; // Course number
+            timestamp = Math.floor(3600 + (Date.now() / 1000))  // 1hour from now
+            await flightSuretyApp.registerFlight(firstAirline, flight, timestamp, { from: firstAirline })
+
+            flightTwo = 'ND1310'
+            await flightSuretyApp.registerFlight(firstAirline, flightTwo, timestamp, { from: firstAirline })
+
+            for (oracle of oracles) {
+                try {
+                    await registerOracle(oracle)
+                } catch (e1) {
+                    await sleepNow(2000)
+                    //retry 2 times with exponential backoff, there are random revert issues when the loop is too fast
+                    try {
+                        await registerOracle(oracle)
+                    }
+                    catch (e2) {
+                        await sleepNow(4000)
+                        try {
+                            await registerOracle(oracle)
+                        } catch (e3) {
+                            await sleepNow(8000)
+                            await registerOracle(oracle)
+                        }
+                    }
+
+                }
+            }
+
+            // pay insurance  passenger 1
+            await flightSuretyApp.buy(firstAirline, flight, timestamp, { value: web3.utils.toWei('1', 'ether'), from: passengers[1] })
+            await flightSuretyApp.buy(firstAirline, flightTwo, timestamp, { value: web3.utils.toWei('0.5', 'ether'), from: passengers[1] })
+
+            // pay insurance passenger 2
+            await flightSuretyApp.buy(firstAirline, flight, timestamp, { value: web3.utils.toWei('1', 'ether'), from: passengers[2] })
+
+
             let result, chosenIndex, consensusCounter = 1
 
             // flight one late because of airlines, both passengers should be credited
             result = await flightSuretyApp.fetchFlightStatus(firstAirline, flight, timestamp)
             chosenIndex = result.logs.filter(log => log.event === 'OracleRequest')[0].args['_index'].toString()
-            for (let a = 0; a < TEST_ORACLES_COUNT; a++) {
+
+            for (let a = 0; a < oracles.length ; a++) {
 
                 // Get oracle information
                 let oracleIndexes = await flightSuretyApp.getMyIndexes({ from: oracles[a] })
-                for (let idx = 0; idx < 3; idx++) {
-                    if (oracleIndexes[idx].toString() !== chosenIndex) {
-                        // expect error if we call oracle
-                        await flightSuretyApp.submitOracleResponse(oracleIndexes[idx], firstAirline, flight, timestamp, STATUS_CODE_LATE_AIRLINE, { from: oracles[a] }).should.be.rejectedWith('Flight or timestamp or index do not match oracle request')
-                    } else {
-                        //success
-                        result = await flightSuretyApp.submitOracleResponse(oracleIndexes[idx], firstAirline, flight, timestamp, STATUS_CODE_LATE_AIRLINE, { from: oracles[a] })
-                        consensusCounter++
-                    }
-                    await sleepNow(1000)
-                }
+                let oracleIdx = oracleIndexes.map(x => x.toString())
+                if (oracleIdx.includes(chosenIndex)) {
+                    result = await flightSuretyApp.submitOracleResponse(chosenIndex, firstAirline, flight, timestamp, STATUS_CODE_LATE_AIRLINE, { from: oracles[a] })
+                    consensusCounter++
 
+                }
             }
+
             if (consensusCounter >= MIN_RESPONSES) {
                 expectEvent(result, 'FlightStatusInfo', { _airline: firstAirline, _flight: flight, _timestamp: timestamp.toString(), _status: STATUS_CODE_LATE_AIRLINE.toString() })
                 resultFlightOne = result
@@ -178,27 +299,24 @@ contract('Passengers', async (accounts) => {
             result = await flightSuretyApp.fetchFlightStatus(firstAirline, flightTwo, timestamp)
             chosenIndex = result.logs.filter(log => log.event === 'OracleRequest')[0].args['_index'].toString()
 
-            for (let a = 0; a < TEST_ORACLES_COUNT; a++) {
+            for (let a = 0; a < oracles.length ; a++) {
 
                 // Get oracle information
                 let oracleIndexes = await flightSuretyApp.getMyIndexes({ from: oracles[a] })
-                for (let idx = 0; idx < 3; idx++) {
-                    if (oracleIndexes[idx].toString() !== chosenIndex) {
-                        // expect error if we call oracle
-                        await flightSuretyApp.submitOracleResponse(oracleIndexes[idx], firstAirline, flightTwo, timestamp, STATUS_CODE_LATE_WEATHER, { from: oracles[a] }).should.be.rejectedWith('Flight or timestamp or index do not match oracle request')
-                    } else {
-                        //success
-                        result = await flightSuretyApp.submitOracleResponse(oracleIndexes[idx], firstAirline, flightTwo, timestamp, STATUS_CODE_LATE_WEATHER, { from: oracles[a] })
-                        consensusCounter++
-                    }
-                    await sleepNow(1000)
+                let oracleIdx = oracleIndexes.map(x => x.toString())
+                if (oracleIdx.includes(chosenIndex)) {
+                    result = await flightSuretyApp.submitOracleResponse(chosenIndex, firstAirline, flightTwo, timestamp, STATUS_CODE_LATE_WEATHER, { from: oracles[a] })
+                    consensusCounter++
+
                 }
             }
+
             if (consensusCounter >= MIN_RESPONSES) {
                 expectEvent(result, 'FlightStatusInfo', { _airline: firstAirline, _flight: flightTwo, _timestamp: timestamp.toString(), _status: STATUS_CODE_LATE_WEATHER.toString() })
             } else {
                 throw new Error(`Consensus ${MIN_RESPONSES} not reached. number responses is ${consensusCounter}`)
             }
+
         })
 
         it('Flights have the right status code', async () => {
@@ -213,10 +331,6 @@ contract('Passengers', async (accounts) => {
             let key = await flightSuretyApp.getFlightKey(firstAirline, flight, timestamp)
             let passengerNumber = await flightSuretyApp.getFlightPassengersNumber(firstAirline, flight, timestamp)
             expectEvent(resultFlightOne, 'FLIGHT_INSURANCE_TOBE_RELEASED', { _airline: firstAirline, _flight: flight, _timestamp: timestamp.toString(), _key: key, _passengersNumber: passengerNumber.toString() })
-        })
-
-        it('Cannot release insurance of flight 2', async () => {
-            await flightSuretyApp.releaseInsurance(firstAirline, flightTwo, timestamp).should.be.rejectedWith('Cannot release insurance. status code not correct')
         })
 
         it('Release insurance for flight 1', async () => {

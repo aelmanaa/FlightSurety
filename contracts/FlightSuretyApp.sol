@@ -249,7 +249,7 @@ contract FlightSuretyApp {
     /*                                     SMART CONTRACT FUNCTIONS                             */
     /********************************************************************************************/
 
-    function setOperatingStatus(bool mode) external requireContractOwner() {
+    function setOperatingStatus(bool mode) public requireContractOwner() {
         operational = mode;
     }
 
