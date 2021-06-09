@@ -7,7 +7,7 @@ body {
 #current-account{
   position: relative;
   color: #fff;
-  left: 700px;
+  left: 500px;
 }
 
 #operational-status{
@@ -74,7 +74,7 @@ body {
 }
 
 .top-20 {
-    margin-top: 20px;
+    margin-top: 60px;
 }
 
 h5 {

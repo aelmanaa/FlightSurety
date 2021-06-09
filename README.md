@@ -51,7 +51,7 @@ To run truffle tests:
    *  checks that in case an airline is late then passengers are credited with 1.5 of their initial deposit
    *  checks that in case an airline is late due other reasons(e.g.: weather) then passengers are not credited
 
-## Tests
+## Demo
 
 To use the dapp:
 
@@ -68,8 +68,26 @@ Start server in a new terminal
 server listens on:
 `http://localhost:3000`
 
+* At initialisation, The DAPP looks like : 
+![Dapp init](/images/init.png)
 
+It contains only one flight which is the one registered by the contract owner during creation
 
+* You can then switch to another account using Metamask and then click on 'Airline staking' , the airline appears in the airlines table. It is marked as in a quueue of registration which means that the first airline must approve it
+
+![Dapp init](/images/afterstaking.png)
+
+* Switch back to first airline using Metamask and click on 'Register'(next to the queued airline) , then you'll see the airline marked as registered
+  
+![Dapp init](/images/2ndairlineregistered.png)
+
+*  Repeat this process until the 5th airline. Once one of the already registered clicks on "Register", the queued airline is queued for voting (consensus required starting from 5th airline)
+  
+![Dapp init](/images/5thairlinereadyforvote.png)
+
+*  The registered airlines can start voting. The airline requires only 2 more votes (the airline which approved registration has a vote marked as 'Yes'). After 3 votes, the airline is registered
+
+![Dapp init](/images/5thairlineafter3rdvote.png)
 
 ## Resources
 

@@ -11,7 +11,7 @@ module.exports = {
         providerOrUrl: 'http://127.0.0.1:8545'
         ,
         addressIndex: 0,
-        numberOfAddresses: 30
+        numberOfAddresses: 50
       }),
       network_id: "*", // Match any network id
       //gas: 6300000

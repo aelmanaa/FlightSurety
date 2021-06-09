@@ -8,6 +8,7 @@ src/dapp/config.json
 src/server/config.json
 /dapp/
 prod/
+.DS_Store
 
 # Runtime data
 pids

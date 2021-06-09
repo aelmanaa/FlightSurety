@@ -56,7 +56,6 @@ contract('Oracles', async (accounts) => {
 
 
     // ACT
-    console.log('oracles ', oracles)
     for (oracle of oracles) {
       try {
         await registerOracle(oracle)
