@@ -1,8 +1,21 @@
 # FlightSurety
 
-FlightSurety is a sample application project for Udacity's Blockchain course. A basic diagram is attahced here:
+FlightSurety is a sample application project for Udacity's Blockchain course. A basic diagram is attached here:
 ![FlightSurety diagram](/dapp-diagram.jpg)
 
+* Blockchain is started up using ganache-cli or ganache-dekstop (cfr. Prerequisites)
+* 2 contracts are deployed on the local blockchain: FlightSuretyData & FlightSuretyApp. Business logic is performed by FlightSuretyApp and the state is persisted within FlightSuretyData
+* The server side is a nodejs application . It performs Oracles logic. Also it loop over FLightSuretyApp to release insurance. In fact, We prefer to perform loops overy arrays outside of the blockchain in order to not lock the contract due to out of gas
+* The client side (browser) is a html,css,javascript application. It handles Airlines and Passengers functionalities 
+* Both applications listen and react to events emitted by the blockchain. For instance:
+  *   the client side requests informations regarding a flight 'fetchFlightStatus'
+  *   An event 'OracleRequest' is emitted by the smart contract 'FlightSuretyApp'
+  *   Elligible Oracles (based on the index in the event) on the nodejs app communicates with 'FlightSuretyApp' by calling 'submitOracleResponses' in order to submit the status of a flight
+  *   Once the minimal number of similar answers (oracles consensus) is reached, an event 'FlightStatusInfo' is emmited. If the status of a flight is 'late airline' then another event is emitted 'FLIGHT_INSURANCE_TOBE_RELEASED' in order to release deposits for insurees
+  *   client side listens to 'FlightStatusInfo' in order to automatically updates the cient side with the flights' status codes
+  *   nodejs application listens to 'FLIGHT_INSURANCE_TOBE_RELEASED' , checks the number of insures by calling 'getFlightPassengersNumber' then loops over 'releaseInsurance' method until there are no more insurees
+  *   'releaseInsurance' emits event 'INSURANCE_RELEASED' with the address of the insuree and other details such as flight number and amount released
+  *   Every passenger can then pay out himself via the DAPP. Thus,  payments of insurees is done via pull rather than push
 ## Prerequisites
 
 * Metamask , you can use a test profile (check the following  [Link](https://genobank.io/create-metamask-identity)) and setup the mnemonic to `shallow more plastic pair asset rare inherit upon issue degree they hobby`
