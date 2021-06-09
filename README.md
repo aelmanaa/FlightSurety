@@ -34,12 +34,24 @@ To install, download or clone the repo, then:
 `truffle compile`
 
 
-## Develop Client
+## Tests
 
 To run truffle tests:
 
-`truffle test ./test/flightSurety.js`
-`truffle test ./test/oracles.js`
+* `truffle test ./test/flightSuretyStopLoss` : This tests that FlightSuretyData & FlightSuretyApp can be made unoperational by the contract owner. When contract are non operationals then no one can call their functionalities anymore until the contracts are made operational again by the contract owner
+* `truffle test ./test/oracles.js` : This tests oracles registration, fetching indexes and submitting flight status info
+* `truffle test ./test/airline.js` : This tests airlines registration and consensus for airline registration. In fact as per the requirements
+  * 1st airline is registered by the owner during the creation of the contract
+  *  the next 3 airlines must stake 10 ETHER first then they are in a queue until an airline which is already registered approves their registration
+  *  Starting from 5 airlines, a new airlines has to stake, another airlines approves its registration then other airlines start voting. if >50 % of favorable answers is reached then the new airline is registered
+*  `truffle test ./test/passengers.js`: 
+   *  checks that a registered airline can register a flight. 
+   *  checks that a passenger can deposit for a flight (insurance)
+   *  checks that anyone can requests information regarding the status of a flight
+   *  checks that in case an airline is late then passengers are credited with 1.5 of their initial deposit
+   *  checks that in case an airline is late due other reasons(e.g.: weather) then passengers are not credited
+
+## Tests
 
 To use the dapp:
 
@@ -50,17 +62,13 @@ To view dapp:
 
 `http://localhost:8000`
 
-## Develop Server
+Start server in a new terminal
 
 `npm run server`
-`truffle test ./test/oracles.js`
+server listens on:
+`http://localhost:3000`
 
-## Deploy
 
-To build dapp for prod:
-`npm run dapp:prod`
-
-Deploy the contents of the ./dapp folder
 
 
 ## Resources
@@ -70,6 +78,6 @@ Deploy the contents of the ./dapp folder
 * [Truffle Framework](http://truffleframework.com/)
 * [Ganache Local Blockchain](http://truffleframework.com/ganache/)
 * [Remix Solidity IDE](https://remix.ethereum.org/)
-* [Solidity Language Reference](http://solidity.readthedocs.io/en/v0.4.24/)
+* [Solidity Language Reference](https://docs.soliditylang.org/en/v0.8.4/)
 * [Ethereum Blockchain Explorer](https://etherscan.io/)
-* [Web3Js Reference](https://github.com/ethereum/wiki/wiki/JavaScript-API)
+* [Web3Js Reference](https://web3js.readthedocs.io/en/v1.2.11/)
