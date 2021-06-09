@@ -89,6 +89,28 @@ It contains only one flight which is the one registered by the contract owner du
 
 ![Dapp init](/images/5thairlineafter3rdvote.png)
 
+* Any airline can register a flight in the Airlines section. Once the flight is registered, it will appear in the flights table. There are 2 buttons: One to request info from oracles 'Flight status' and one for passengers to submit deposit
+
+![Dapp init](/images/afterflightregistration.png)
+
+* Once an insurance is deposited, the passenger appears in the list of passengers. Also , a list of deposits per flight and passenger is filled in
+
+![Dapp init](/images/afterdepositinsurance.png)
+
+* Any actor can request status of a flight. Once the oracles respond, an event is emitted and the frontend is automatically updated. Also, if the status of the flight is 'LATE AIRLINE' then the balance of the passenger is updated (cfr. passengers table). As you will notice, there is a button available to withdraw money (withdrawal is done in pull mode)
+
+![Dapp init](/images/afterflightstatus.png)
+
+* Login on passenger account. in this example , the balance of the passenger in the contract is 1.5ETHER. the account balance can be seen on metamask
+
+![Dapp init](/images/balancepassengerbefore.png)
+
+* Clock on withdraw balance and you will notice that the balance of the passenger in the contract becomes 0 ETHER. The account balance is credited of 1.5 ETH
+
+![Dapp init](/images/balancepassengerafter.png)
+
+
+
 ## Resources
 
 * [How does Ethereum work anyway?](https://medium.com/@preethikasireddy/how-does-ethereum-work-anyway-22d1df506369)
