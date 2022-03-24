@@ -3,6 +3,10 @@ description: File a bug report
 title: "[Bug]: <your-title-here>"
 labels: ["bug", "triage"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to helping out make xx better!
   - type: textarea
     id: describe-bug
     attributes:
@@ -20,6 +24,17 @@ body:
         1. Go to '...'
         2. Click on '....'
         3. See error
+    validations:
+      required: true
+   - type: textarea
+    id: urls
+    attributes:
+      label: URLs
+      description: Copy the links of the concerned pages.
+      value: | 
+        - https://xxx
+        - https://xx
+        - ...
     validations:
       required: true
   - type: textarea
