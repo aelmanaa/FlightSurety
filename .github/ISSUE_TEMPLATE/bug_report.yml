@@ -20,7 +20,7 @@ body:
       value: | 
       1. Go to '...'
       2. Click on '....'
-      3. See error"
+      3. See error
     validations:
       required: true
   - type: text-area
