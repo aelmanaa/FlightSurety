@@ -1,53 +1,61 @@
-name: Bug Report
-description: File a bug report
-title: "[Bug]: <your-title-here>"
-labels: ["bug", "triage"]
-body:
-  - type: markdown
-    attributes:
-      value: |
-        Thanks for taking the time to helping out make xx better!
-  - type: textarea
+--- 
+body: 
+  - 
+    attributes: 
+      value: "Thanks for taking the time to helping out make xx better!\n"
+    type: markdown
+  - 
+    attributes: 
+      description: "A clear and concise description of what the bug is."
+      label: "Describe the bug"
+      placeholder: "Tell us what you see!"
     id: describe-bug
-    attributes:
-      label: Describe the bug
-      description: A clear and concise description of what the bug is.
-      placeholder: Tell us what you see!
-    validations:
+    type: textarea
+    validations: 
       required: true
-  - type: textarea
+  - 
+    attributes: 
+      description: "Steps to reproduce the behavior (If applicable, add screenshots to help explain your problem)."
+      label: "To Reproduce"
+      value: |
+          1. Go to '...'
+          2. Click on '....'
+          3. See error
     id: to-reproduce
-    attributes:
-      label: To Reproduce
-      description: Steps to reproduce the behavior (If applicable, add screenshots to help explain your problem).
-      value: | 
-        1. Go to '...'
-        2. Click on '....'
-        3. See error
-    validations:
+    type: textarea
+    validations: 
       required: true
-   - type: textarea
-    id: urls
-    attributes:
+  - 
+    attributes: 
+      description: "Copy the links of the concerned pages."
       label: URLs
-      description: Copy the links of the concerned pages.
-      value: | 
-        - https://xxx
-        - https://xx
-        - ...
-    validations:
+      value: |
+          - https://xxx
+          - https://xx
+          - ...
+    id: urls
+    type: textarea
+    validations: 
       required: true
-  - type: textarea
+  - 
+    attributes: 
+      description: "A clear and concise description of what you expected to happen."
+      label: "Expected behavior"
     id: expected-behavior
-    attributes:
-      label: Expected behavior
-      description: A clear and concise description of what you expected to happen.
-    validations:
+    type: textarea
+    validations: 
       required: false
-  - type: textarea
+  - 
+    attributes: 
+      description: "Add any other context about the problem here."
+      label: "Additional context"
     id: additional-context
-    attributes:
-      label: Additional context
-      description: Add any other context about the problem here.
-    validations:
+    type: textarea
+    validations: 
       required: false
+description: "File a bug report"
+labels: 
+  - bug
+  - triage
+name: "Bug Report"
+title: "[Bug]: <your-title-here>"
