@@ -11,7 +11,7 @@ body:
       placeholder: Tell us what you see!
     validations:
       required: true
-  - type: text-area
+  - type: textarea
     id: to-reproduce
     attributes:
       label: To Reproduce
@@ -22,7 +22,7 @@ body:
         3. See error
     validations:
       required: true
-  - type: text-area
+  - type: textarea
     id: expected-behavior
     attributes:
       label: Expected behavior
@@ -30,7 +30,7 @@ body:
       value: ""
     validations:
       required: false
-  - type: text-area
+  - type: textarea
     id: additional-context
     attributes:
       label: Additional context
