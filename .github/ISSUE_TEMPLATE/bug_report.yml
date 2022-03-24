@@ -18,9 +18,9 @@ body:
       label: To Reproduce
       description: Steps to reproduce the behavior (If applicable, add screenshots to help explain your problem).
       value: | 
-      1. Go to '...'
-      2. Click on '....'
-      3. See error
+        1. Go to '...'
+        2. Click on '....'
+        3. See error
     validations:
       required: true
   - type: text-area
