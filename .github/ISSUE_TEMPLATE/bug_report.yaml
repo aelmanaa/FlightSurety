@@ -1,0 +1,41 @@
+name: Bug Report
+description: File a bug report
+title: "[Bug]: <your-title-here>"
+labels: ["bug", "triage"]
+body:
+  - type: textarea
+    id: describe-bug
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+      placeholder: Tell us what you see!
+      value: ""
+    validations:
+      required: true
+  - type: text-area
+    id: to-reproduce
+    attributes:
+      label: To Reproduce
+      description: Steps to reproduce the behavior (If applicable, add screenshots to help explain your problem).
+      value: | 
+      1. Go to '...'
+      2. Click on '....'
+      3. See error"
+    validations:
+      required: true
+  - type: text-area
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: A clear and concise description of what you expected to happen.
+      value: ""
+    validations:
+      required: false
+  - type: text-area
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add any other context about the problem here.
+      value: ""
+    validations:
+      required: false
